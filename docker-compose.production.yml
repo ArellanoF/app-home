@@ -40,8 +40,8 @@ services:
       GOOGLE_CALENDAR_PUBLIC_URL: ${GOOGLE_CALENDAR_PUBLIC_URL:-}
       GOOGLE_CALENDAR_ICAL_URL: ${GOOGLE_CALENDAR_ICAL_URL:-}
       RUN_MIGRATIONS: "true"
-    ports:
-      - "${APP_PORT:-8000}:8000"
+    expose:
+      - "8000"
     depends_on:
       db:
         condition: service_healthy
