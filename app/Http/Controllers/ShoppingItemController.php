@@ -15,16 +15,17 @@ class ShoppingItemController extends Controller
         $item = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'quantity' => ['nullable', 'string', 'max:50'],
-            'category' => ['required', Rule::in(['fruit', 'fresh', 'pantry', 'cleaning', 'other'])],
+            'category' => ['required', Rule::in(['food', 'cleaning', 'other'])],
         ]);
 
-        ShoppingItem::create($item);
+        ShoppingItem::create([...$item, 'house_id' => $request->user()->house_id]);
 
         return redirect(route('home').'#compra')->with('success', 'Artículo añadido a la compra.');
     }
 
     public function toggle(ShoppingItem $shoppingItem): JsonResponse
     {
+        abort_unless($shoppingItem->house_id === request()->user()->house_id, 404);
         $shoppingItem->update(['purchased_at' => $shoppingItem->purchased_at ? null : now()]);
 
         return response()->json(['purchased' => $shoppingItem->purchased_at !== null]);
@@ -32,6 +33,7 @@ class ShoppingItemController extends Controller
 
     public function destroy(ShoppingItem $shoppingItem): RedirectResponse
     {
+        abort_unless($shoppingItem->house_id === request()->user()->house_id, 404);
         $shoppingItem->delete();
 
         return redirect(route('home').'#compra')->with('success', 'Artículo eliminado.');

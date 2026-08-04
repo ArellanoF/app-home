@@ -2,11 +2,25 @@ const dialog = document.querySelector('#task-dialog');
 const membersDialog = document.querySelector('#members-dialog');
 const shoppingDialog = document.querySelector('#shopping-dialog');
 const mealDialog = document.querySelector('#meal-dialog');
+const noteDialog = document.querySelector('#note-dialog');
 const toast = document.querySelector('.toast');
 const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
 document.querySelectorAll('[data-open-task]').forEach((button) => {
     button.addEventListener('click', () => dialog.showModal());
+});
+
+const taskDateInput = dialog.querySelector('input[type="date"]');
+const taskDateValue = dialog.querySelector('[data-date-value]');
+
+taskDateInput.addEventListener('change', () => {
+    if (!taskDateInput.value) {
+        taskDateValue.textContent = 'Selecciona una fecha';
+        return;
+    }
+
+    const [year, month, day] = taskDateInput.value.split('-');
+    taskDateValue.textContent = `${day}/${month}/${year}`;
 });
 
 document.querySelector('[data-close-task]').addEventListener('click', () => dialog.close());
@@ -15,22 +29,69 @@ document.querySelector('[data-close-members]').addEventListener('click', () => m
 document.querySelector('[data-open-shopping]').addEventListener('click', () => shoppingDialog.showModal());
 document.querySelector('[data-close-shopping]').addEventListener('click', () => shoppingDialog.close());
 document.querySelector('[data-close-meal]').addEventListener('click', () => mealDialog.close());
+const openNoteButton = document.querySelector('[data-open-note]');
+const closeNoteButton = document.querySelector('[data-close-note]');
+if (openNoteButton) openNoteButton.addEventListener('click', () => noteDialog.showModal());
+if (closeNoteButton) closeNoteButton.addEventListener('click', () => noteDialog.close());
 
-document.querySelectorAll('[data-open-meal]').forEach((slot) => {
-    slot.addEventListener('click', () => {
-        const form = mealDialog.querySelector('form');
-        form.elements.meal_date.value = slot.dataset.date;
-        form.elements.meal_type.value = slot.dataset.type;
-        form.elements.name.value = slot.dataset.name || '';
-        form.elements.notes.value = slot.dataset.notes || '';
-        mealDialog.querySelector('[data-meal-dialog-title]').textContent = `${slot.dataset.type === 'lunch' ? 'Comida' : 'Cena'} del ${formatLocalDate(slot.dataset.date)}`;
-        mealDialog.showModal();
+const notificationsToggle = document.querySelector('[data-notifications-toggle]');
+const notificationsPanel = document.querySelector('[data-notifications-panel]');
+
+if (notificationsToggle && notificationsPanel) {
+    notificationsToggle.addEventListener('click', () => {
+        const expanded = notificationsToggle.getAttribute('aria-expanded') !== 'true';
+        notificationsToggle.setAttribute('aria-expanded', String(expanded));
+        notificationsPanel.hidden = !expanded;
     });
-});
+
+    document.addEventListener('click', (event) => {
+        if (!event.target.closest('.notifications')) closeNotifications();
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeNotifications();
+    });
+    notificationsPanel.querySelectorAll('[data-notification-link]').forEach((link) => {
+        link.addEventListener('click', () => {
+            const tasksPanel = document.querySelector('.tasks-panel');
+            if (tasksPanel) tasksPanel.classList.add('show-all-tasks');
+            closeNotifications();
+        });
+    });
+}
+
+function closeNotifications() {
+    if (!notificationsToggle || !notificationsPanel) return;
+    notificationsToggle.setAttribute('aria-expanded', 'false');
+    notificationsPanel.hidden = true;
+}
+
+function initializeMealSlots(container = document) {
+    container.querySelectorAll('[data-open-meal]').forEach((slot) => {
+        slot.addEventListener('click', () => {
+            const form = mealDialog.querySelector('form');
+            const mealId = slot.dataset.mealId;
+            form.action = mealId ? `${form.dataset.updateAction}/${mealId}` : form.dataset.storeAction;
+            form.querySelector('[data-meal-method]').value = mealId ? 'PUT' : 'POST';
+            form.elements.meal_date.value = slot.dataset.date;
+            form.elements.meal_type.value = slot.dataset.type;
+            form.elements.name.value = slot.dataset.name || '';
+            form.elements.notes.value = slot.dataset.notes || '';
+            form.elements.ingredients_text.value = slot.dataset.ingredients || '';
+            mealDialog.querySelector('[data-meal-dialog-title]').textContent = `${mealId ? 'Editar' : 'Añadir'} ${slot.dataset.type === 'lunch' ? 'comida' : 'cena'} del ${formatLocalDate(slot.dataset.date)}`;
+            mealDialog.showModal();
+        });
+    });
+}
+
+initializeMealSlots();
 
 document.querySelectorAll('.shopping-row[data-shopping-id] input').forEach((input) => {
+    let hideTimeout;
+
     input.addEventListener('change', async () => {
         const row = input.closest('.shopping-row');
+        window.clearTimeout(hideTimeout);
+        row.classList.remove('hiding');
         input.disabled = true;
         try {
             const response = await fetch(`/shopping-items/${row.dataset.shoppingId}/toggle`, {
@@ -40,7 +101,14 @@ document.querySelectorAll('.shopping-row[data-shopping-id] input').forEach((inpu
             if (!response.ok) throw new Error('No se pudo actualizar la compra');
             const result = await response.json();
             row.classList.toggle('purchased', result.purchased);
-            showToast(result.purchased ? 'Marcado como comprado' : 'Devuelto a pendientes');
+            showToast(result.purchased ? 'Comprado · puedes deshacerlo durante 5 segundos' : 'Devuelto a pendientes');
+
+            if (result.purchased) {
+                hideTimeout = window.setTimeout(() => {
+                    row.classList.add('hiding');
+                    window.setTimeout(() => row.remove(), 300);
+                }, 5000);
+            }
         } catch (error) {
             input.checked = !input.checked;
             showToast(error.message);
@@ -65,7 +133,10 @@ document.querySelectorAll('.task-row[data-task-id] input').forEach((input) => {
 
             const result = await response.json();
             row.classList.toggle('done', result.completed);
-            showToast(result.completed ? 'Tarea completada. ¡Buen trabajo!' : 'Tarea marcada como pendiente');
+            const message = result.next_due_date
+                ? `Tarea completada · siguiente: ${formatLocalDate(result.next_due_date)}`
+                : (result.completed ? 'Tarea completada. ¡Buen trabajo!' : 'Tarea marcada como pendiente');
+            showToast(message);
         } catch (error) {
             input.checked = !input.checked;
             showToast(error.message);
@@ -75,12 +146,74 @@ document.querySelectorAll('.task-row[data-task-id] input').forEach((input) => {
     });
 });
 
+document.querySelectorAll('[data-task-assignee]').forEach((select) => {
+    select.addEventListener('change', async () => {
+        const row = select.closest('[data-task-id]');
+        select.disabled = true;
+        try {
+            const response = await fetch(`/tasks/${row.dataset.taskId}/reassign`, {
+                method: 'PATCH',
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                body: JSON.stringify({ user_id: select.value }),
+            });
+            if (!response.ok) throw new Error('No se pudo reasignar la tarea');
+            const result = await response.json();
+            const avatar = row.querySelector('[data-task-avatar]');
+            avatar.className = `avatar avatar-${result.color}`;
+            avatar.textContent = result.initials;
+            avatar.title = result.name;
+            showToast(`Tarea asignada a ${result.name}`);
+        } catch (error) {
+            showToast(error.message);
+        } finally {
+            select.disabled = false;
+        }
+    });
+});
+
+document.querySelectorAll('[data-task-postpone]').forEach((select) => {
+    select.addEventListener('change', async () => {
+        if (!select.value) return;
+        const row = select.closest('[data-task-id]');
+        select.disabled = true;
+        try {
+            const response = await fetch(`/tasks/${row.dataset.taskId}/postpone`, {
+                method: 'PATCH',
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                body: JSON.stringify({ until: select.value }),
+            });
+            if (!response.ok) throw new Error('No se pudo posponer la tarea');
+            const result = await response.json();
+            row.querySelector('[data-task-date]').textContent = result.label;
+            showToast(`Tarea pospuesta al ${result.label}`);
+        } catch (error) {
+            showToast(error.message);
+        } finally {
+            select.value = '';
+            select.disabled = false;
+        }
+    });
+});
+
+const tasksToggleButton = document.querySelector('[data-toggle-tasks]');
+
+if (tasksToggleButton) {
+    tasksToggleButton.addEventListener('click', () => {
+        const expanded = tasksToggleButton.getAttribute('aria-expanded') !== 'true';
+        document.querySelector('.tasks-panel').classList.toggle('show-all-tasks', expanded);
+        tasksToggleButton.setAttribute('aria-expanded', String(expanded));
+        tasksToggleButton.firstChild.textContent = expanded ? 'Ver menos ' : 'Ver todas ';
+        tasksToggleButton.querySelector('span').textContent = expanded ? '↑' : '↓';
+    });
+}
+
 if (window.taskFormHasErrors) dialog.showModal();
 if (toast.textContent.trim()) window.setTimeout(() => toast.classList.remove('show'), 2600);
 
-const calendarDataElement = document.querySelector('#calendar-events-data');
+function initializeCalendar() {
+    const calendarDataElement = document.querySelector('#calendar-events-data');
+    if (!calendarDataElement) return;
 
-if (calendarDataElement) {
     const calendarEvents = JSON.parse(calendarDataElement.textContent);
     const eventsContainer = document.querySelector('[data-calendar-events]');
     const calendarTitle = document.querySelector('[data-calendar-title]');
@@ -96,7 +229,6 @@ if (calendarDataElement) {
             upcomingButton.classList.remove('active');
             calendarTitle.textContent = `Eventos del ${link.dataset.calendarLabel}`;
             renderCalendarEvents(calendarEvents.filter((item) => item.date === date), true);
-            updateCalendarUrl(date);
         });
     });
 
@@ -108,7 +240,6 @@ if (calendarDataElement) {
         upcomingButton.classList.add('active');
         calendarTitle.textContent = 'Próximos eventos';
         renderCalendarEvents(calendarEvents.filter((item) => item.is_upcoming).slice(0, 5), false);
-        updateCalendarUrl(null);
     });
 
     function setSelectedDay(selectedLink) {
@@ -118,13 +249,6 @@ if (calendarDataElement) {
             if (selected) link.setAttribute('aria-current', 'date');
             else link.removeAttribute('aria-current');
         });
-    }
-
-    function updateCalendarUrl(date) {
-        const url = new URL(window.location.href);
-        if (date) url.searchParams.set('date', date);
-        else url.searchParams.delete('date');
-        window.history.pushState({ calendarDate: date }, '', `${url.pathname}${url.search}#calendario`);
     }
 
     function renderCalendarEvents(events, filteredByDay) {
@@ -142,7 +266,17 @@ if (calendarDataElement) {
             return;
         }
 
-        events.forEach((event, index) => {
+        const groupedEvents = Object.groupBy
+            ? Object.groupBy(events, (event) => event.date)
+            : events.reduce((groups, event) => ({ ...groups, [event.date]: [...(groups[event.date] || []), event] }), {});
+
+        Object.values(groupedEvents).forEach((dayEvents) => {
+            const heading = document.createElement('h3');
+            heading.className = 'events-day-heading';
+            heading.textContent = dayEvents[0].date_label;
+            eventsContainer.append(heading);
+
+            dayEvents.forEach((event, index) => {
             const article = document.createElement('article');
             article.className = `event-item ${['sage-event', 'clay-event', 'gold-event'][index % 3]}`;
             const time = document.createElement('time');
@@ -168,8 +302,65 @@ if (calendarDataElement) {
             status.textContent = 'G';
             article.append(time, details, status);
             eventsContainer.append(article);
+            });
         });
     }
+}
+
+initializeCalendar();
+
+initializeWeekNavigation('#menu', initializeMealSlots);
+initializeWeekNavigation('#calendario', initializeCalendar);
+
+function initializeWeekNavigation(sectionSelector, initializeSection) {
+    const section = document.querySelector(sectionSelector);
+    if (!section) return;
+
+    const navigationSelector = sectionSelector === '#menu'
+        ? '.menu-week-controls a, .menu-week-controls [data-week-today-url]'
+        : '.calendar-week-nav a, .calendar-week-nav [data-week-today-url]';
+    section.querySelectorAll(navigationSelector).forEach((control) => {
+        control.addEventListener('click', async (event) => {
+            event.preventDefault();
+            if (section.getAttribute('aria-busy') === 'true') return;
+
+            section.setAttribute('aria-busy', 'true');
+            section.querySelectorAll(navigationSelector).forEach((navigationControl) => {
+                navigationControl.setAttribute('aria-disabled', 'true');
+            });
+
+            try {
+                const targetUrl = control.href || control.dataset.weekTodayUrl;
+                const response = await fetch(targetUrl, {
+                    headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                if (!response.ok) throw new Error('No se pudo cambiar de semana');
+
+                const nextDocument = new DOMParser().parseFromString(await response.text(), 'text/html');
+                const nextSection = nextDocument.querySelector(sectionSelector);
+                if (!nextSection) throw new Error('La respuesta no contiene el calendario solicitado');
+
+                if (sectionSelector === '#calendario') {
+                    const nextCalendarData = nextDocument.querySelector('#calendar-events-data');
+                    const currentCalendarData = document.querySelector('#calendar-events-data');
+                    if (!nextCalendarData || !currentCalendarData) {
+                        throw new Error('La respuesta no contiene los datos del calendario');
+                    }
+                    currentCalendarData.replaceWith(nextCalendarData);
+                }
+
+                section.replaceWith(nextSection);
+                initializeSection(nextSection);
+                initializeWeekNavigation(sectionSelector, initializeSection);
+            } catch (error) {
+                section.removeAttribute('aria-busy');
+                section.querySelectorAll(navigationSelector).forEach((navigationControl) => {
+                    navigationControl.removeAttribute('aria-disabled');
+                });
+                showToast(error.message);
+            }
+        });
+    });
 }
 
 function showToast(message) {

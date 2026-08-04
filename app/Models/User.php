@@ -10,16 +10,28 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'color', 'is_active'])]
+#[Fillable(['house_id', 'name', 'email', 'password', 'color', 'is_active'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
+    protected static function booted(): void
+    {
+        static::creating(function (User $user) {
+            $user->house_id ??= auth()->user()?->house_id;
+        });
+    }
+
     public function tasks()
     {
         return $this->hasMany(Task::class);
+    }
+
+    public function house()
+    {
+        return $this->belongsTo(House::class);
     }
 
     /**

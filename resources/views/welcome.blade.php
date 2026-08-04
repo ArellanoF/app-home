@@ -6,18 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#f6f4ed">
-    <title>Zunzuncasa</title>
+    <title>{{ $house->name }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
 <body>
     <div class="app-shell">
         <aside class="sidebar" aria-label="Navegación principal">
-            <a class="brand" href="#" aria-label="Zunzuncasa, inicio">
-                <span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M3 11.5 12 4l9 7.5v8a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />
-                    </svg></span>
-                <span>Zunzuncasa</span>
+            <a class="brand" href="#" aria-label="{{ $house->name }}, inicio">
+                <img src="{{ asset('images/logo.png') }}" alt="Vestapp - Gestion del hogar">
             </a>
             <nav class="side-nav">
                 <a class="active" href="#inicio"><svg viewBox="0 0 24 24">
@@ -52,6 +49,10 @@
                         Crea una tarea para empezar
                     @endif
                 </small>
+                <form method="POST" action="{{ route('logout') }}" class="logout-form">
+                    @csrf
+                    <button type="submit">Cerrar sesión</button>
+                </form>
             </div>
         </aside>
 
@@ -63,25 +64,71 @@
                     <p class="subtitle">Todo lo importante de casa, en un solo vistazo.</p>
                 </div>
                 <div class="top-actions">
-                    <button class="icon-button" aria-label="Notificaciones"><svg viewBox="0 0 24 24">
+                    <div class="notifications">
+                    <button class="icon-button" type="button" data-notifications-toggle aria-label="Notificaciones"
+                        aria-expanded="false" aria-controls="notifications-panel"><svg viewBox="0 0 24 24">
                             <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
-                        </svg><i></i></button>
-                    <button class="primary-button" data-open-task><svg viewBox="0 0 24 24">
+                        </svg>@if ($attentionTasks->isNotEmpty())<i></i><span class="notification-count">{{ $attentionTasks->count() }}</span>@endif</button>
+                    <div class="notifications-panel" id="notifications-panel" data-notifications-panel hidden>
+                        <header><strong>Avisos</strong><small>{{ $attentionTasks->count() }} {{ $attentionTasks->count() === 1 ? 'pendiente' : 'pendientes' }}</small></header>
+                        @forelse ($attentionTasks as $attentionTask)
+                            <a href="#task-{{ $attentionTask->id }}" data-notification-link>
+                                <span class="notification-status {{ $attentionTask->due_date->isBefore($currentTime->startOfDay()) ? 'overdue' : '' }}"></span>
+                                <span><strong>{{ $attentionTask->title }}</strong><small>{{ $attentionTask->due_date->isToday() ? 'Vence hoy' : 'Atrasada desde ' . $attentionTask->due_date->locale('es')->isoFormat('D MMM') }} · {{ $attentionTask->assignee->name }}</small></span>
+                            </a>
+                        @empty
+                            <div class="notifications-empty"><strong>Todo al día</strong><small>No hay tareas atrasadas ni para hoy.</small></div>
+                        @endforelse
+                    </div>
+                    </div>
+                    <button class="primary-button top-task-button" data-open-task aria-label="Nueva tarea"><svg viewBox="0 0 24 24"
+                            aria-hidden="true">
                             <path d="M12 5v14m-7-7h14" />
                         </svg>Nueva tarea</button>
                 </div>
             </header>
 
             <section class="overview-grid" aria-label="Resumen del día">
-                <article class="focus-card">
+                <article class="focus-card {{ $weather ? 'has-weather' : '' }}">
+                    <div class="focus-top">
                     <div class="focus-copy">
                         <span class="eyebrow light">HOY EN CASA</span>
                         <p><strong>{{ $pendingTasksCount }} {{ $pendingTasksCount === 1 ? 'tarea' : 'tareas' }}</strong>
                             pendientes y <strong>{{ count($googleCalendar['events']) }} eventos</strong> próximos en tu
                             agenda.</p>
                     </div>
+                    @if ($weather)
+                        <div class="focus-weather" aria-label="Tiempo en {{ $weather['location'] }}">
+                            <span class="weather-icon" aria-hidden="true">{{ $weather['icon'] }}</span>
+                            <span><strong>{{ $weather['temperature'] }}°</strong><small>{{ $weather['description'] }}</small><em>{{ $weather['location'] }}</em></span>
+                        </div>
+                    @endif
+                    </div>
+                    @if ($weather)
+                        <div class="weather-details"><span>Máx. {{ $weather['max'] }}° · Mín. {{ $weather['min'] }}°</span><span>💧 {{ $weather['rain'] }}%</span><span>💨 {{ $weather['wind'] }} km/h</span><span>Sensación {{ $weather['apparent'] }}°</span></div>
+                        <div class="weather-forecast" aria-label="Previsión para los próximos días">
+                            @foreach ($weather['forecast'] as $day)
+                                <div class="forecast-day" title="{{ $day['description'] }}">
+                                    <strong>{{ $day['day'] }}</strong><small>{{ $day['date'] }}</small><span>{{ $day['icon'] }}</span><b>{{ $day['max'] }}° <i>{{ $day['min'] }}°</i></b><em>💧 {{ $day['rain'] }}%</em>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                     <div class="decor-leaf" aria-hidden="true">⌁</div>
                 </article>
+            </section>
+
+            <section id="avisos" class="house-notes" aria-label="Avisos familiares">
+                <div class="house-notes-heading"><div><span class="eyebrow">TABLÓN</span><h2>Avisos de casa</h2></div>
+                    <button class="text-button" type="button" data-open-note>＋ Añadir aviso</button></div>
+                <div class="house-notes-list">
+                    @forelse ($familyNotes as $note)
+                        <article><p>{{ $note->content }}</p><footer><span class="avatar avatar-{{ $note->author->color }}">{{ str($note->author->name)->substr(0, 2)->upper() }}</span><small>{{ $note->author->name }} · {{ $note->created_at->locale('es')->diffForHumans() }}</small>
+                            <form method="POST" action="{{ route('family-notes.destroy', $note) }}">@csrf @method('DELETE')<button aria-label="Eliminar aviso">×</button></form></footer></article>
+                    @empty
+                        <p class="notes-empty">No hay avisos fijados.</p>
+                    @endforelse
+                </div>
             </section>
 
             <div class="home-tools-grid">
@@ -95,7 +142,7 @@
                     </div>
                     <div class="shopping-list">
                         @forelse ($shoppingItems as $item)
-                            @php($categoryData = ['fruit' => ['🍎', 'Fruta y verdura'], 'fresh' => ['🥛', 'Frescos'], 'pantry' => ['🥫', 'Despensa'], 'cleaning' => ['🧽', 'Limpieza'], 'other' => ['🛒', 'Otros']][$item->category] ?? ['🛒', 'Otros'])
+                            @php($categoryData = ['food' => ['🍎', 'Comida'], 'cleaning' => ['🧽', 'Productos de limpieza'], 'other' => ['🛒', 'Otros']][$item->category] ?? ['🛒', 'Otros'])
                             <div class="shopping-row {{ $item->purchased_at ? 'purchased' : '' }}"
                                 data-shopping-id="{{ $item->id }}">
                                 <label><input type="checkbox" {{ $item->purchased_at ? 'checked' : '' }}><span
@@ -122,6 +169,7 @@
                         <div class="menu-week-controls">
                             <a href="{{ route('home', ['menu_week' => $menuWeekStart->subWeek()->format('Y-m-d')]) . '#menu' }}"
                                 aria-label="Semana anterior">‹</a>
+                            <button type="button" data-week-today-url="{{ route('home', ['menu_week' => now(config('app.timezone'))->startOfWeek()->format('Y-m-d')]) . '#menu' }}">Hoy</button>
                             <span>{{ $menuWeekStart->locale('es')->isoFormat('D MMM') }} —
                                 {{ $menuWeekStart->endOfWeek()->locale('es')->isoFormat('D MMM') }}</span>
                             <a href="{{ route('home', ['menu_week' => $menuWeekStart->addWeek()->format('Y-m-d')]) . '#menu' }}"
@@ -135,17 +183,37 @@
                                     <span>{{ $day->locale('es')->isoFormat('ddd') }}</span><strong>{{ $day->day }}</strong>
                                 </header>
                                 @foreach (['lunch' => ['Comida', '☀️'], 'dinner' => ['Cena', '☾']] as $type => [$typeLabel, $typeIcon])
-                                    @php($meal = $weeklyMeals->get($day->format('Y-m-d') . '-' . $type))
-                                    <button class="meal-slot {{ $meal ? 'has-meal' : '' }}" type="button"
+                                    @php($slotMeals = $weeklyMeals->get($day->format('Y-m-d') . '-' . $type, collect()))
+                                    <div class="meal-slot {{ $slotMeals->isNotEmpty() ? 'has-meal' : '' }}">
+                                    <button class="meal-slot-add" type="button"
                                         data-open-meal data-date="{{ $day->format('Y-m-d') }}"
-                                        data-type="{{ $type }}" data-name="{{ $meal?->name }}"
-                                        data-notes="{{ $meal?->notes }}">
+                                        data-type="{{ $type }}" aria-label="Añadir {{ strtolower($typeLabel) }}">
                                         <span>{{ $typeIcon }} {{ $typeLabel }}</span>
-                                        <strong>{{ $meal?->name ?: 'Añadir plato' }}</strong>
-                                        @if ($meal?->notes)
-                                            <small>{{ $meal->notes }}</small>
-                                        @endif
+                                        <strong>＋</strong>
                                     </button>
+                                    @forelse ($slotMeals as $meal)
+                                        <div class="meal-entry">
+                                            <button type="button" data-open-meal data-meal-id="{{ $meal->id }}"
+                                                data-date="{{ $day->format('Y-m-d') }}" data-type="{{ $type }}"
+                                                data-name="{{ $meal->name }}" data-notes="{{ $meal->notes }}"
+                                                data-ingredients="{{ collect($meal->ingredients)->map(fn ($ingredient) => $ingredient['name'] . ($ingredient['quantity'] ? ' | ' . $ingredient['quantity'] : ''))->implode("\n") }}">
+                                                <strong>{{ $meal->name }}</strong>
+                                                @if ($meal->notes)<small>{{ $meal->notes }}</small>@endif
+                                            </button>
+                                            @if (count($meal->ingredients ?? []))
+                                                <form method="POST" action="{{ route('meals.shopping-list', $meal) }}">@csrf
+                                                    <button type="submit" class="meal-to-shopping" title="Añadir ingredientes a la compra" aria-label="Añadir ingredientes de {{ $meal->name }} a la compra">＋</button>
+                                                </form>
+                                            @endif
+                                            <form method="POST" action="{{ route('meals.destroy', $meal) }}">
+                                                @csrf @method('DELETE')
+                                                <button type="submit" aria-label="Eliminar {{ $meal->name }}">×</button>
+                                            </form>
+                                        </div>
+                                    @empty
+                                        <small class="meal-slot-empty">Añadir plato</small>
+                                    @endforelse
+                                    </div>
                                 @endforeach
                             </article>
                         @endforeach
@@ -159,26 +227,24 @@
                         <div><span class="eyebrow">TAREAS</span>
                             <h2>Lista de tareas <small class="heading-count">{{ $tasksCount }}</small></h2>
                         </div>
-                        @if ($tasksCount > 4)
-                            <a class="text-button"
-                                href="{{ $showAllTasks ? route('home') . '#tareas' : route('home', ['tasks' => 1]) . '#tareas' }}">
-                                {{ $showAllTasks ? 'Ver menos' : 'Ver todas' }}
-                                <span>{{ $showAllTasks ? '↑' : '→' }}</span>
-                            </a>
+                        @if ($tasks->count() > 5)
+                            <button class="text-button" type="button" data-toggle-tasks aria-expanded="false">
+                                Ver todas <span>↓</span>
+                            </button>
                         @endif
                     </div>
                     <div class="task-list">
                         @forelse ($tasks as $task)
-                            <label class="task-row {{ $task->completed_at ? 'done' : '' }}"
+                            <div id="task-{{ $task->id }}" class="task-row {{ $task->completed_at ? 'done' : '' }} {{ $loop->index >= 5 ? 'task-overflow' : '' }}"
                                 data-task-id="{{ $task->id }}">
-                                <input type="checkbox" {{ $task->completed_at ? 'checked' : '' }}><span
-                                    class="checkmark"></span>
+                                <label class="task-check"><input type="checkbox" {{ $task->completed_at ? 'checked' : '' }}><span
+                                    class="checkmark"></span></label>
                                 @php($taskIcons = ['home' => ['🏠', 'home'], 'cleaning' => ['🧹', 'cleaning'], 'kitchen' => ['🍽️', 'kitchen'], 'plants' => ['🌿', 'plants']])
                                 <span
                                     class="task-icon {{ $taskIcons[$task->icon][1] ?? 'home' }}">{{ $taskIcons[$task->icon][0] ?? '🏠' }}</span>
                                 <span class="task-copy">
                                     <strong>{{ $task->title }}</strong>
-                                    <small>
+                                    <small data-task-date>
                                         @if ($task->completed_at)
                                             Completada {{ $task->completed_at->locale('es')->diffForHumans() }}
                                         @elseif ($task->due_date)
@@ -190,10 +256,25 @@
                                     @if ($task->description)
                                         <span class="task-description">{{ $task->description }}</span>
                                     @endif
+                                    @if ($task->recurrence !== 'none')
+                                        <span class="task-recurrence">↻ {{ ['daily' => 'Cada día', 'weekly' => 'Cada semana', 'monthly' => 'Cada mes'][$task->recurrence] }}</span>
+                                    @endif
                                 </span>
                                 <span class="avatar avatar-{{ $task->assignee->color }}"
-                                    title="{{ $task->assignee->name }}">{{ str($task->assignee->name)->substr(0, 2)->upper() }}</span>
-                            </label>
+                                    data-task-avatar title="{{ $task->assignee->name }}">{{ str($task->assignee->name)->substr(0, 2)->upper() }}</span>
+                                @if (! $task->completed_at)
+                                    <div class="task-quick-actions">
+                                        <select data-task-assignee aria-label="Reasignar {{ $task->title }}">
+                                            @foreach ($activeMembers as $member)
+                                                <option value="{{ $member->id }}" @selected($member->id === $task->user_id)>{{ $member->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <select data-task-postpone aria-label="Posponer {{ $task->title }}">
+                                            <option value="">Posponer…</option><option value="tomorrow">A mañana</option><option value="next_week">A próxima semana</option>
+                                        </select>
+                                    </div>
+                                @endif
+                            </div>
                         @empty
                             <div class="tasks-empty"><strong>Aún no hay tareas</strong><small>Crea la primera para Fran
                                     o Carmen.</small></div>
@@ -209,25 +290,28 @@
                                 {{ $dateFilterActive ? 'Eventos del ' . $selectedDate->locale('es')->isoFormat('D [de] MMMM') : 'Próximos eventos' }}
                             </h2>
                         </div>
-                        <a class="google-button" href="{{ $googleCalendarUrl }}" target="_blank"
-                            rel="noopener noreferrer"><span class="google-g">G</span><span class="google-label">Abrir
-                                en Google</span></a>
+                        @if ($googleCalendarUrl)
+                            <a class="google-button" href="{{ $googleCalendarUrl }}" target="_blank"
+                                rel="noopener noreferrer"><span class="google-g">G</span><span class="google-label">Abrir
+                                    en Google</span></a>
+                        @endif
                     </div>
                     <div class="calendar-week-nav">
-                        <a href="{{ route('home', array_filter(['date' => $selectedDate->subWeek()->format('Y-m-d'), 'tasks' => $showAllTasks ? 1 : null])) . '#calendario' }}"
+                        <a href="{{ route('home', ['week' => $weekStart->subWeek()->format('Y-m-d')]) . '#calendario' }}"
                             aria-label="Semana anterior">‹</a>
+                        <button type="button" data-week-today-url="{{ route('home', ['week' => now(config('app.timezone'))->startOfWeek()->format('Y-m-d')]) . '#calendario' }}">Hoy</button>
                         <button type="button" data-calendar-upcoming class="{{ $dateFilterActive ? '' : 'active' }}"
                             title="Mostrar próximos eventos">Próximos</button>
                         <span>{{ $weekStart->locale('es')->isoFormat('D MMM') }} —
                             {{ $weekStart->addDays(6)->locale('es')->isoFormat('D MMM') }}</span>
-                        <a href="{{ route('home', array_filter(['date' => $selectedDate->addWeek()->format('Y-m-d'), 'tasks' => $showAllTasks ? 1 : null])) . '#calendario' }}"
+                        <a href="{{ route('home', ['week' => $weekStart->addWeek()->format('Y-m-d')]) . '#calendario' }}"
                             aria-label="Semana siguiente">›</a>
                     </div>
                     <div class="calendar-strip"
                         aria-label="Semana del {{ $weekStart->locale('es')->isoFormat('D [de] MMMM') }}">
                         @foreach ($weekDays as $day)
                             @php($hasEvents = $eventsByDate->has($day->format('Y-m-d')))
-                            <a href="{{ route('home', array_filter(['date' => $day->format('Y-m-d'), 'tasks' => $showAllTasks ? 1 : null])) . '#calendario' }}"
+                            <a href="{{ route('home', ['date' => $day->format('Y-m-d')]) . '#calendario' }}"
                                 data-calendar-date="{{ $day->format('Y-m-d') }}"
                                 data-calendar-label="{{ $day->locale('es')->isoFormat('D [de] MMMM') }}"
                                 class="{{ $dateFilterActive && $day->isSameDay($selectedDate) ? 'selected' : '' }} {{ $day->isToday() ? 'today' : '' }}"
@@ -244,20 +328,21 @@
                     </div>
                     <div class="events-list" data-calendar-events
                         data-calendar-name="{{ $googleCalendar['calendar'] ?: 'Google Calendar' }}">
-                        @forelse ($googleCalendar['events'] as $index => $event)
-                            <article class="event-item {{ ['sage-event', 'clay-event', 'gold-event'][$index % 3] }}">
+                        @forelse (collect($googleCalendar['events'])->groupBy(fn ($event) => $event['start']->format('Y-m-d')) as $eventDate => $dayEvents)
+                            <h3 class="events-day-heading">{{ $dayEvents->first()['start']->isToday() ? 'Hoy' : str($dayEvents->first()['start']->locale('es')->isoFormat('dddd D [de] MMMM'))->ucfirst() }}</h3>
+                            @foreach ($dayEvents as $event)
+                            <article class="event-item {{ ['sage-event', 'clay-event', 'gold-event'][$loop->index % 3] }}">
                                 <time>
                                     <strong>{{ $event['all_day'] ? 'Todo el día' : $event['start']->format('H:i') }}</strong>
                                     <small>{{ $event['all_day'] ? $event['start']->locale('es')->isoFormat('D MMM') : $event['end']->format('H:i') }}</small>
                                 </time>
                                 <div>
-                                    <span class="source">{{ $googleCalendar['calendar'] ?: 'Google Calendar' }} ·
-                                        {{ $event['start']->locale('es')->isoFormat('ddd D MMM') }}</span>
                                     <strong>{{ $event['title'] }}</strong>
                                     <small>{{ $event['location'] ?: 'Sin ubicación' }}</small>
                                 </div>
                                 <span class="event-status" title="Sincronizado con Google">G</span>
                             </article>
+                            @endforeach
                         @empty
                             <div class="calendar-empty">
                                 <strong>{{ $googleCalendar['synced'] ? 'No hay eventos este día' : 'No se pudo cargar el calendario' }}</strong>
@@ -275,18 +360,19 @@
             <section id="familia" class="panel family-panel">
                 <div class="section-heading">
                     <div><span class="eyebrow">EQUIPO</span>
-                        <h2>Así nos repartimos la semana</h2>
+                        <h2>Reparto de este mes</h2>
                     </div>
                     <button class="text-button" data-open-members>Gestionar equipo <span>→</span></button>
                 </div>
                 <div class="family-grid">
                     @foreach ($members as $member)
-                        @php($percentage = $member->tasks_count ? (int) round(($member->completed_tasks_count / $member->tasks_count) * 100) : 0)
+                        @php($percentage = $monthlyHouseCompletedCount ? (int) round(($member->monthly_completed_tasks_count / $monthlyHouseCompletedCount) * 100) : 0)
                         <article class="{{ $member->is_active ? '' : 'inactive-member' }}">
                             <span
                                 class="avatar avatar-{{ $member->color }}">{{ str($member->name)->substr(0, 2)->upper() }}</span>
-                            <div><strong>{{ $member->name }}</strong><small>{{ $member->completed_tasks_count }} de
-                                    {{ $member->tasks_count }} tareas</small>
+                            <div><strong>{{ $member->name }}</strong><small>{{ $member->monthly_completed_tasks_count }} completadas ·
+                                    {{ $member->monthly_late_tasks_count }} con retraso
+                                    @if ($member->monthly_average_delay_days > 0) · media {{ round($member->monthly_average_delay_days, 1) }} días @endif</small>
                                 <div class="member-progress"><i style="width: {{ $percentage }}%"></i></div>
                             </div>
                             <b>{{ $member->is_active ? $percentage . '%' : 'Inactivo' }}</b>
@@ -304,7 +390,10 @@
             <a href="#tareas"><svg viewBox="0 0 24 24">
                     <path d="m4 12 2 2 4-4m3-3h7m-16 11 2 2 4-4m3 3h7" />
                 </svg><span>Tareas</span></a>
-            <button class="mobile-add" data-open-task aria-label="Nueva tarea">＋</button>
+            <button class="mobile-add" data-open-task aria-label="Nueva tarea"><svg viewBox="0 0 24 24"
+                    aria-hidden="true">
+                    <path d="M12 5v14m-7-7h14" />
+                </svg></button>
             <a href="#compra"><svg viewBox="0 0 24 24">
                     <path d="M3 4h2l2 12h10l3-8H6m3 12h.01M17 20h.01" />
                 </svg><span>Compra</span></a>
@@ -321,7 +410,7 @@
             <span class="eyebrow">NUEVA TAREA</span>
             <h2>¿Qué hay que hacer?</h2>
             <label>Nombre de la tarea<input type="text" name="title" value="{{ old('title') }}"
-                    placeholder="Ej. Limpiar el baño" required autofocus></label>
+                    placeholder="Ej. Limpiar el baño" required></label>
             <fieldset class="icon-picker">
                 <legend>Elige un icono</legend>
                 @foreach (['home' => ['🏠', 'Hogar'], 'cleaning' => ['🧹', 'Limpieza'], 'kitchen' => ['🍽️', 'Cocina'], 'plants' => ['🌿', 'Plantas']] as $value => [$emoji, $label])
@@ -339,8 +428,18 @@
                             <option value="{{ $member->id }}" @selected((string) old('user_id') === (string) $member->id)>{{ $member->name }}
                             </option>
                         @endforeach
-                    </select></label><label>Fecha<input type="date" name="due_date"
-                        value="{{ old('due_date', now()->format('Y-m-d')) }}"></label></div>
+                    </select></label><label class="date-field">Fecha<span class="date-control"><span
+                                class="date-value" data-date-value>{{ \Carbon\Carbon::parse(old('due_date', now()->format('Y-m-d')))->format('d/m/Y') }}</span><input
+                                type="date" name="due_date" value="{{ old('due_date', now()->format('Y-m-d')) }}"><svg
+                                viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Zm-2 6h18M8 2v4m8-4v4" />
+                            </svg></span></label></div>
+            <label>Repetición<select name="recurrence" required>
+                    <option value="none" @selected(old('recurrence', 'none') === 'none')>No se repite</option>
+                    <option value="daily" @selected(old('recurrence') === 'daily')>Cada día</option>
+                    <option value="weekly" @selected(old('recurrence') === 'weekly')>Cada semana</option>
+                    <option value="monthly" @selected(old('recurrence') === 'monthly')>Cada mes</option>
+                </select></label>
             <button class="primary-button dialog-submit" type="submit">Crear tarea</button>
         </form>
     </dialog>
@@ -413,18 +512,18 @@
             <label>¿Qué necesitas?<input name="name" placeholder="Ej. Leche" required maxlength="120"></label>
             <div class="form-row"><label>Cantidad<input name="quantity" placeholder="Ej. 2 litros"
                         maxlength="50"></label><label>Categoría<select name="category">
-                        <option value="fruit">Fruta y verdura</option>
-                        <option value="fresh">Frescos</option>
-                        <option value="pantry">Despensa</option>
-                        <option value="cleaning">Limpieza</option>
+                        <option value="food">Comida</option>
+                        <option value="cleaning">Productos de limpieza</option>
                         <option value="other">Otros</option>
                     </select></label></div>
             <button class="primary-button dialog-submit" type="submit">Añadir a la lista</button>
         </form>
     </dialog>
     <dialog id="meal-dialog" class="simple-dialog">
-        <form method="POST" action="{{ route('meals.store') }}">
+        <form method="POST" action="{{ route('meals.store') }}" data-meal-form
+            data-store-action="{{ route('meals.store') }}" data-update-action="{{ url('/meals') }}">
             @csrf
+            <input type="hidden" name="_method" value="POST" data-meal-method>
             <button class="dialog-close" type="button" data-close-meal aria-label="Cerrar">×</button>
             <span class="eyebrow">MENÚ SEMANAL</span>
             <h2 data-meal-dialog-title>Planificar comida</h2>
@@ -433,7 +532,17 @@
                     maxlength="150"></label>
             <label>Notas opcionales<input name="notes" placeholder="Ej. Preparar la noche anterior"
                     maxlength="1000"></label>
+            <label>Ingredientes<textarea name="ingredients_text" rows="5" maxlength="3000"
+                    placeholder="Un ingrediente por línea:&#10;Tomates | 4 unidades&#10;Arroz | 500 g"></textarea></label>
             <button class="primary-button dialog-submit" type="submit">Guardar en el menú</button>
+        </form>
+    </dialog>
+    <dialog id="note-dialog" class="simple-dialog">
+        <form method="POST" action="{{ route('family-notes.store') }}">@csrf
+            <button class="dialog-close" type="button" data-close-note aria-label="Cerrar">×</button>
+            <span class="eyebrow">AVISO FAMILIAR</span><h2>Fijar un aviso</h2>
+            <label>Mensaje<textarea name="content" rows="4" maxlength="280" placeholder="Ej. El técnico viene el jueves a las 10" required></textarea></label>
+            <button class="primary-button dialog-submit" type="submit">Publicar aviso</button>
         </form>
     </dialog>
     <div class="toast {{ session('success') ? 'show' : '' }}" role="status" aria-live="polite">

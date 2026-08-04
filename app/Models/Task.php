@@ -11,12 +11,22 @@ class Task extends Model
 
     protected $fillable = [
         'title',
+        'house_id',
         'icon',
         'description',
         'user_id',
         'due_date',
+        'recurrence',
+        'recurrence_source_id',
         'completed_at',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Task $task) {
+            $task->house_id ??= auth()->user()?->house_id;
+        });
+    }
 
     public function assignee()
     {

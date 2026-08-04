@@ -14,9 +14,9 @@ class GoogleCalendarService
     /**
      * @return array{events: array<int, array<string, mixed>>, synced: bool, calendar: string|null}
      */
-    public function upcoming(int $limit = 5, ?CarbonImmutable $fromDate = null): array
+    public function upcoming(int $limit = 5, ?CarbonImmutable $fromDate = null, ?string $calendarUrl = null): array
     {
-        $url = config('services.google_calendar.ical_url');
+        $url = $calendarUrl;
 
         if (! $url) {
             return ['events' => [], 'synced' => false, 'calendar' => null];
@@ -24,7 +24,7 @@ class GoogleCalendarService
 
         try {
             $ical = Cache::remember(
-                'google-calendar.ical-feed',
+                'google-calendar.ical-feed.'.sha1($url),
                 now()->addMinutes(10),
                 fn () => Http::timeout(10)->retry(2, 250)->get($url)->throw()->body(),
             );

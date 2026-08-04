@@ -16,13 +16,14 @@ class HouseholdMemberController extends Controller
             'color' => ['required', Rule::in(['sage', 'clay', 'blue'])],
         ]);
 
-        User::create($validated);
+        User::create([...$validated, 'house_id' => $request->user()->house_id]);
 
         return redirect(route('home').'#familia')->with('success', 'Miembro añadido al equipo.');
     }
 
     public function update(Request $request, User $member): RedirectResponse
     {
+        abort_unless($member->house_id === $request->user()->house_id, 404);
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:80'],
             'color' => ['required', Rule::in(['sage', 'clay', 'blue'])],
@@ -35,7 +36,9 @@ class HouseholdMemberController extends Controller
 
     public function toggle(User $member): RedirectResponse
     {
-        if ($member->is_active && User::where('is_active', true)->count() === 1) {
+        abort_unless($member->house_id === request()->user()->house_id, 404);
+
+        if ($member->is_active && User::where('house_id', $member->house_id)->where('is_active', true)->count() === 1) {
             return back()->withErrors(['member' => 'Debe quedar al menos un miembro activo.']);
         }
 

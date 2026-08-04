@@ -37,9 +37,6 @@ docker compose logs -f app
 # Ejecutar Artisan
 docker compose exec app php artisan migrate
 
-# Ejecutar las pruebas
-docker compose exec app php artisan test
-
 # Abrir una terminal en el contenedor
 docker compose exec app bash
 
