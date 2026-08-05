@@ -40,24 +40,37 @@ document.addEventListener('submit', async (event) => {
         else submitButton.textContent = loadingLabel;
     }
 
+    const formDialog = form.closest('#task-dialog, #shopping-dialog, #meal-dialog, #note-dialog');
+    let optimisticEntry = null;
+    let saved = false;
+
     try {
-        const response = await fetch(form.action, {
+        optimisticEntry = formDialog ? insertOptimisticEntry(form, formDialog) : null;
+        const responsePromise = fetch(form.action, {
             method: (form.method || 'POST').toUpperCase(),
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
             body: new FormData(form),
         });
+        await wait(180);
+        if (formDialog?.open) formDialog.close();
+        const response = await responsePromise;
         const result = await response.json().catch(() => ({}));
         if (!response.ok) {
             const validationMessage = Object.values(result.errors || {}).flat()[0];
             throw new Error(validationMessage || result.message || 'No se pudo guardar el cambio');
         }
 
-        const formDialog = form.closest('#task-dialog, #shopping-dialog, #meal-dialog, #note-dialog');
+        saved = true;
         await refreshFragments(result.refresh_url || window.location.href, form.dataset.refresh);
         form.reset();
-        if (formDialog) formDialog.close();
         showToast(result.message || 'Cambio guardado.');
     } catch (error) {
+        if (!saved) {
+            optimisticEntry?.rollback();
+            if (formDialog && !formDialog.open) formDialog.showModal();
+        } else {
+            form.reset();
+        }
         showToast(error.message);
     } finally {
         delete form.dataset.submitting;
@@ -71,6 +84,85 @@ document.addEventListener('submit', async (event) => {
         });
     }
 });
+
+function wait(milliseconds) {
+    return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+function insertOptimisticEntry(form, formDialog) {
+    const hiddenEmptyStates = [];
+    const hideEmptyStates = (container) => {
+        container?.querySelectorAll('.tasks-empty,.tool-empty,.notes-empty,.meal-slot-empty').forEach((element) => {
+            if (!element.hidden) {
+                element.hidden = true;
+                hiddenEmptyStates.push(element);
+            }
+        });
+    };
+    const finish = (element) => ({
+        rollback() {
+            element?.remove();
+            hiddenEmptyStates.forEach((emptyState) => { emptyState.hidden = false; });
+        },
+    });
+
+    if (formDialog.id === 'task-dialog') {
+        const container = document.querySelector('#tareas .task-list');
+        if (!container) return null;
+        hideEmptyStates(container);
+        const icon = { home: '🏠', cleaning: '🧹', kitchen: '🍽️', plants: '🌿' }[form.elements.icon?.value] || '🏠';
+        const assignee = form.elements.user_id?.selectedOptions[0]?.textContent.trim() || '';
+        const entry = document.createElement('div');
+        entry.className = 'task-row optimistic-entry';
+        entry.innerHTML = `<span class="checkmark"></span><span class="task-icon">${icon}</span><span class="task-copy"><strong></strong><small>Guardando…</small></span><span class="avatar avatar-sage"></span>`;
+        entry.querySelector('.task-copy strong').textContent = form.elements.title.value;
+        entry.querySelector('.avatar').textContent = assignee.slice(0, 2).toUpperCase();
+        container.prepend(entry);
+        return finish(entry);
+    }
+
+    if (formDialog.id === 'shopping-dialog') {
+        const container = document.querySelector('#compra .shopping-list');
+        if (!container) return null;
+        hideEmptyStates(container);
+        const categories = { food: ['🍎', 'Comida'], cleaning: ['🧽', 'Productos de limpieza'], other: ['🛒', 'Otros'] };
+        const [icon, category] = categories[form.elements.category.value] || categories.other;
+        const entry = document.createElement('div');
+        entry.className = 'shopping-row optimistic-entry';
+        entry.innerHTML = `<span class="checkmark"></span><span class="shopping-icon">${icon}</span><span class="shopping-copy"><strong></strong><small></small></span><span class="optimistic-status">Guardando…</span>`;
+        entry.querySelector('strong').textContent = form.elements.name.value;
+        entry.querySelector('small').textContent = `${form.elements.quantity.value || 'Cantidad sin indicar'} · ${category}`;
+        container.prepend(entry);
+        return finish(entry);
+    }
+
+    if (formDialog.id === 'note-dialog') {
+        const container = document.querySelector('.house-notes-list');
+        if (!container) return null;
+        hideEmptyStates(container);
+        const entry = document.createElement('article');
+        entry.className = 'optimistic-entry';
+        entry.innerHTML = '<p></p><footer><small>Publicando…</small></footer>';
+        entry.querySelector('p').textContent = form.elements.content.value;
+        container.prepend(entry);
+        return finish(entry);
+    }
+
+    if (formDialog.id === 'meal-dialog') {
+        const trigger = document.querySelector(`[data-open-meal][data-date="${CSS.escape(form.elements.meal_date.value)}"][data-type="${CSS.escape(form.elements.meal_type.value)}"]`);
+        const container = trigger?.closest('.meal-slot');
+        if (!container) return null;
+        hideEmptyStates(container);
+        const entry = document.createElement('div');
+        entry.className = 'meal-entry optimistic-entry';
+        entry.innerHTML = '<span><strong></strong><small>Guardando…</small></span>';
+        entry.querySelector('strong').textContent = form.elements.name.value;
+        container.append(entry);
+        return finish(entry);
+    }
+
+    return null;
+}
 
 async function refreshFragments(url, selectors) {
     if (!selectors) return;

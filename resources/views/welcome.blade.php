@@ -151,7 +151,7 @@
                                 <span class="shopping-copy"><strong>{{ $item->name }}</strong><small>{{ $item->quantity ?: 'Cantidad sin indicar' }}
                                         · {{ $categoryData[1] }}</small></span>
                                 <form method="POST" action="{{ route('shopping-items.destroy', $item) }}" data-fetch-form data-refresh="#compra,.side-nav">@csrf
-                                    @method('DELETE')<button aria-label="Eliminar {{ $item->name }}">×</button>
+                                    @method('DELETE')<button type="submit" aria-label="Eliminar {{ $item->name }}">×</button>
                                 </form>
                             </div>
                         @empty
