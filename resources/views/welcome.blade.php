@@ -504,7 +504,7 @@
         </div>
     </dialog>
     <dialog id="shopping-dialog" class="simple-dialog">
-        <form method="POST" action="{{ route('shopping-items.store') }}">
+        <form method="POST" action="{{ route('shopping-items.store') }}" data-prevent-double-submit>
             @csrf
             <button class="dialog-close" type="button" data-close-shopping aria-label="Cerrar">×</button>
             <span class="eyebrow">LISTA DE LA COMPRA</span>
@@ -516,7 +516,7 @@
                         <option value="cleaning">Productos de limpieza</option>
                         <option value="other">Otros</option>
                     </select></label></div>
-            <button class="primary-button dialog-submit" type="submit">Añadir a la lista</button>
+            <button class="primary-button dialog-submit" type="submit" data-submitting-label="Añadiendo…">Añadir a la lista</button>
         </form>
     </dialog>
     <dialog id="meal-dialog" class="simple-dialog">
@@ -538,11 +538,11 @@
         </form>
     </dialog>
     <dialog id="note-dialog" class="simple-dialog">
-        <form method="POST" action="{{ route('family-notes.store') }}">@csrf
+        <form method="POST" action="{{ route('family-notes.store') }}" data-prevent-double-submit>@csrf
             <button class="dialog-close" type="button" data-close-note aria-label="Cerrar">×</button>
             <span class="eyebrow">AVISO FAMILIAR</span><h2>Fijar un aviso</h2>
             <label>Mensaje<textarea name="content" rows="4" maxlength="280" placeholder="Ej. El técnico viene el jueves a las 10" required></textarea></label>
-            <button class="primary-button dialog-submit" type="submit">Publicar aviso</button>
+            <button class="primary-button dialog-submit" type="submit" data-submitting-label="Publicando…">Publicar aviso</button>
         </form>
     </dialog>
     <div class="toast {{ session('success') ? 'show' : '' }}" role="status" aria-live="polite">
