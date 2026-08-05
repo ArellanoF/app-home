@@ -545,3 +545,125 @@ function formatLocalDate(date) {
     return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long' })
         .format(new Date(`${date}T12:00:00`));
 }
+
+initializeWebPush();
+
+async function initializeWebPush() {
+    const settings = document.querySelector('[data-push-settings]');
+    if (!settings) return;
+
+    const button = settings.querySelector('[data-push-toggle]');
+    const title = settings.querySelector('[data-push-title]');
+    const description = settings.querySelector('[data-push-description]');
+    const publicKey = settings.dataset.vapidPublicKey;
+
+    if (!publicKey) {
+        button.disabled = true;
+        button.textContent = 'No disponible';
+        description.textContent = 'El servidor todavía no tiene configuradas las claves de notificación.';
+        return;
+    }
+
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+        button.disabled = true;
+        button.textContent = 'No compatible';
+        description.textContent = 'En iPhone, abre esta web desde el icono añadido a la pantalla de inicio.';
+        return;
+    }
+
+    try {
+        const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+        const subscription = await registration.pushManager.getSubscription();
+        updatePushSettings(Boolean(subscription), Notification.permission);
+
+        button.addEventListener('click', async () => {
+            if (button.disabled) return;
+            button.disabled = true;
+
+            try {
+                const currentSubscription = await registration.pushManager.getSubscription();
+                if (currentSubscription) {
+                    const response = await fetch(settings.dataset.unsubscribeUrl, {
+                        method: 'DELETE',
+                        headers: jsonHeaders(),
+                        body: JSON.stringify({ endpoint: currentSubscription.endpoint }),
+                    });
+                    if (!response.ok) throw new Error('No se pudo desactivar la notificación');
+
+                    await currentSubscription.unsubscribe();
+                    updatePushSettings(false, Notification.permission);
+                    showToast('Notificaciones desactivadas.');
+                    return;
+                }
+
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    updatePushSettings(false, permission);
+                    throw new Error('No se concedió permiso para enviar notificaciones');
+                }
+
+                const newSubscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(publicKey),
+                });
+                const subscriptionData = newSubscription.toJSON();
+                subscriptionData.contentEncoding = PushManager.supportedContentEncodings?.[0] || 'aes128gcm';
+
+                const response = await fetch(settings.dataset.subscribeUrl, {
+                    method: 'POST',
+                    headers: jsonHeaders(),
+                    body: JSON.stringify(subscriptionData),
+                });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    await newSubscription.unsubscribe();
+                    throw new Error(result.message || 'No se pudo guardar la suscripción');
+                }
+
+                updatePushSettings(true, permission);
+                showToast('Notificaciones activadas.');
+            } catch (error) {
+                showToast(error.message);
+            } finally {
+                button.disabled = Notification.permission === 'denied';
+            }
+        });
+    } catch {
+        button.disabled = true;
+        button.textContent = 'No disponible';
+        description.textContent = 'No se pudo preparar el servicio de notificaciones.';
+    }
+
+    function updatePushSettings(subscribed, permission) {
+        settings.classList.toggle('is-enabled', subscribed);
+        title.textContent = subscribed ? 'Notificaciones activadas' : 'Notificaciones del iPhone';
+        button.textContent = subscribed ? 'Desactivar' : 'Activar';
+
+        if (permission === 'denied') {
+            description.textContent = 'El permiso está bloqueado. Actívalo desde los ajustes del iPhone.';
+            button.textContent = 'Bloqueadas';
+            button.disabled = true;
+        } else {
+            description.textContent = subscribed
+                ? 'Te avisaremos cuando otra persona te asigne una tarea.'
+                : 'Recibe un aviso cuando otra persona te asigne una tarea.';
+        }
+    }
+}
+
+function jsonHeaders() {
+    return {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest',
+    };
+}
+
+function urlBase64ToUint8Array(value) {
+    const padding = '='.repeat((4 - value.length % 4) % 4);
+    const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = window.atob(base64);
+
+    return Uint8Array.from([...raw].map((character) => character.charCodeAt(0)));
+}

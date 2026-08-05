@@ -40,4 +40,10 @@ return [
         'public_url' => env('GOOGLE_CALENDAR_PUBLIC_URL'),
     ],
 
+    'web_push' => [
+        'subject' => env('WEB_PUSH_SUBJECT', env('APP_URL')),
+        'public_key' => env('WEB_PUSH_PUBLIC_KEY'),
+        'private_key' => env('WEB_PUSH_PRIVATE_KEY'),
+    ],
+
 ];

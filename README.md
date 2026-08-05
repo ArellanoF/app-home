@@ -139,3 +139,22 @@ cp .env.production.example .env.production
 # Sustituye todos los valores GENERATE_* y APP_URL.
 docker compose --env-file .env.production -f docker-compose.production.yml up --build -d
 ```
+# Notificaciones Web Push
+
+La aplicación puede avisar al usuario asignado cuando otra persona crea una tarea para él. En iPhone requiere iOS 16.4 o posterior, HTTPS y abrir la web desde el icono añadido a la pantalla de inicio.
+
+Genera una sola pareja de claves VAPID:
+
+```bash
+docker compose exec app php artisan webpush:generate-vapid-keys
+```
+
+Configura los valores resultantes en el entorno de producción y vuelve a desplegar:
+
+```dotenv
+WEB_PUSH_SUBJECT=mailto:administrador@example.com
+WEB_PUSH_PUBLIC_KEY=...
+WEB_PUSH_PRIVATE_KEY=...
+```
+
+Cada usuario debe entrar con su cuenta, abrir el panel de la campana y pulsar **Activar** en cada dispositivo donde quiera recibir avisos. Las migraciones crean el almacenamiento de suscripciones y registran el creador de cada nueva tarea.

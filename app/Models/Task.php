@@ -15,6 +15,7 @@ class Task extends Model
         'icon',
         'description',
         'user_id',
+        'created_by_user_id',
         'due_date',
         'recurrence',
         'recurrence_source_id',
@@ -31,6 +32,11 @@ class Task extends Model
     public function assignee()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by_user_id');
     }
 
     protected function casts(): array

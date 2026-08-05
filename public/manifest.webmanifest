@@ -1,0 +1,24 @@
+{
+    "name": "Vestapp - Gestión del hogar",
+    "short_name": "Vestapp",
+    "description": "Todo lo importante de casa en un solo lugar.",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#f6f4ed",
+    "theme_color": "#f6f4ed",
+    "icons": [
+        {
+            "src": "/images/logo.png",
+            "sizes": "1024x1024",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/images/logo.png",
+            "sizes": "1024x1024",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

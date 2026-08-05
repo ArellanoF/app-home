@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Task;
+use App\Services\WebPushService;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class TaskController extends Controller
@@ -36,7 +38,23 @@ class TaskController extends Controller
             return back()->withErrors(['due_date' => 'Las tareas recurrentes necesitan una fecha.'])->withInput();
         }
 
-        Task::create([...$validated, 'house_id' => $request->user()->house_id]);
+        $creator = $request->user();
+        $task = Task::create([
+            ...$validated,
+            'house_id' => $creator->house_id,
+            'created_by_user_id' => $creator->id,
+        ]);
+
+        if ($task->user_id !== $creator->id) {
+            try {
+                app(WebPushService::class)->taskAssigned($task, $creator);
+            } catch (\Throwable $exception) {
+                Log::error('La tarea se creó, pero su notificación Web Push falló.', [
+                    'task_id' => $task->id,
+                    'exception' => $exception,
+                ]);
+            }
+        }
 
         if ($request->expectsJson()) {
             return response()->json(['message' => 'Tarea creada correctamente.', 'refresh_url' => route('home')], 201);

@@ -6,6 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#f6f4ed">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/logo.png') }}">
     <title>{{ $house->name }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -71,6 +75,14 @@
                         </svg>@if ($attentionTasks->isNotEmpty())<i></i><span class="notification-count">{{ $attentionTasks->count() }}</span>@endif</button>
                     <div class="notifications-panel" id="notifications-panel" data-notifications-panel hidden>
                         <header><strong>Avisos</strong><small>{{ $attentionTasks->count() }} {{ $attentionTasks->count() === 1 ? 'pendiente' : 'pendientes' }}</small></header>
+                        <div class="push-settings"
+                            data-push-settings
+                            data-vapid-public-key="{{ config('services.web_push.public_key') }}"
+                            data-subscribe-url="{{ route('push-subscriptions.store') }}"
+                            data-unsubscribe-url="{{ route('push-subscriptions.destroy') }}">
+                            <span><strong data-push-title>Notificaciones del iPhone</strong><small data-push-description>Recibe un aviso cuando otra persona te asigne una tarea.</small></span>
+                            <button type="button" data-push-toggle>Activar</button>
+                        </div>
                         @forelse ($attentionTasks as $attentionTask)
                             <a href="#task-{{ $attentionTask->id }}" data-notification-link>
                                 <span class="notification-status {{ $attentionTask->due_date->isBefore($currentTime->startOfDay()) ? 'overdue' : '' }}"></span>
