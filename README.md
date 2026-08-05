@@ -141,7 +141,7 @@ docker compose --env-file .env.production -f docker-compose.production.yml up --
 ```
 # Notificaciones Web Push
 
-La aplicación puede avisar al usuario asignado cuando otra persona crea una tarea para él. En iPhone requiere iOS 16.4 o posterior, HTTPS y abrir la web desde el icono añadido a la pantalla de inicio.
+La aplicación puede avisar al usuario asignado cuando otra persona crea una tarea para él y a toda la casa, salvo el autor, cuando se publica una nota familiar. En iPhone requiere iOS 16.4 o posterior, HTTPS y abrir la web desde el icono añadido a la pantalla de inicio.
 
 Genera una sola pareja de claves VAPID:
 

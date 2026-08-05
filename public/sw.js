@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vestapp-shell-v1';
+const CACHE_NAME = 'vestapp-shell-v3';
 const APP_SHELL = ['/manifest.webmanifest', '/images/logo.png'];
 
 self.addEventListener('install', (event) => {
@@ -36,14 +36,5 @@ self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     const destination = new URL(event.notification.data?.url || '/', self.location.origin).href;
 
-    event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
-        for (const client of clients) {
-            if (new URL(client.url).origin === self.location.origin) {
-                await client.navigate(destination);
-                return client.focus();
-            }
-        }
-
-        return self.clients.openWindow(destination);
-    }));
+    event.waitUntil(self.clients.openWindow(destination));
 });

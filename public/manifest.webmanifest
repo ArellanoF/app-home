@@ -1,6 +1,7 @@
 {
     "name": "Vestapp - Gestión del hogar",
     "short_name": "Vestapp",
+    "id": "/",
     "description": "Todo lo importante de casa en un solo lugar.",
     "start_url": "/",
     "scope": "/",

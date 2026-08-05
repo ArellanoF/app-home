@@ -8,7 +8,9 @@
     <meta name="theme-color" content="#f6f4ed">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="application-name" content="Vestapp">
     <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
+    <link rel="icon" type="image/png" href="{{ asset('images/logo.png') }}">
     <link rel="apple-touch-icon" href="{{ asset('images/logo.png') }}">
     <title>{{ $house->name }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -80,7 +82,7 @@
                             data-vapid-public-key="{{ config('services.web_push.public_key') }}"
                             data-subscribe-url="{{ route('push-subscriptions.store') }}"
                             data-unsubscribe-url="{{ route('push-subscriptions.destroy') }}">
-                            <span><strong data-push-title>Notificaciones del iPhone</strong><small data-push-description>Recibe un aviso cuando otra persona te asigne una tarea.</small></span>
+                            <span><strong data-push-title>Notificaciones del iPhone</strong><small data-push-description>Recibe avisos de tareas asignadas y nuevas notas familiares.</small></span>
                             <button type="button" data-push-toggle>Activar</button>
                         </div>
                         @forelse ($attentionTasks as $attentionTask)

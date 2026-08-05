@@ -645,8 +645,8 @@ async function initializeWebPush() {
             button.disabled = true;
         } else {
             description.textContent = subscribed
-                ? 'Te avisaremos cuando otra persona te asigne una tarea.'
-                : 'Recibe un aviso cuando otra persona te asigne una tarea.';
+                ? 'Te avisaremos de tareas asignadas y nuevas notas familiares.'
+                : 'Recibe avisos de tareas asignadas y nuevas notas familiares.';
         }
     }
 }
