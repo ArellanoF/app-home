@@ -6,6 +6,38 @@ const noteDialog = document.querySelector('#note-dialog');
 const toast = document.querySelector('.toast');
 const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
+const guardedForms = document.querySelectorAll('[data-prevent-double-submit]');
+
+guardedForms.forEach((form) => {
+    form.addEventListener('submit', (event) => {
+        if (form.dataset.submitting === 'true') {
+            event.preventDefault();
+            return;
+        }
+
+        form.dataset.submitting = 'true';
+        form.setAttribute('aria-busy', 'true');
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (!submitButton) return;
+
+        submitButton.dataset.idleLabel = submitButton.textContent;
+        submitButton.textContent = submitButton.dataset.submittingLabel || 'Guardando…';
+        submitButton.disabled = true;
+    });
+});
+
+window.addEventListener('pageshow', () => {
+    guardedForms.forEach((form) => {
+        form.removeAttribute('data-submitting');
+        form.removeAttribute('aria-busy');
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (!submitButton) return;
+
+        submitButton.disabled = false;
+        if (submitButton.dataset.idleLabel) submitButton.textContent = submitButton.dataset.idleLabel;
+    });
+});
+
 document.querySelectorAll('[data-open-task]').forEach((button) => {
     button.addEventListener('click', () => dialog.showModal());
 });

@@ -404,7 +404,7 @@
     </div>
 
     <dialog id="task-dialog">
-        <form method="POST" action="{{ route('tasks.store') }}">
+        <form method="POST" action="{{ route('tasks.store') }}" data-prevent-double-submit>
             @csrf
             <button class="dialog-close" type="button" data-close-task aria-label="Cerrar">×</button>
             <span class="eyebrow">NUEVA TAREA</span>
@@ -440,7 +440,7 @@
                     <option value="weekly" @selected(old('recurrence') === 'weekly')>Cada semana</option>
                     <option value="monthly" @selected(old('recurrence') === 'monthly')>Cada mes</option>
                 </select></label>
-            <button class="primary-button dialog-submit" type="submit">Crear tarea</button>
+            <button class="primary-button dialog-submit" type="submit" data-submitting-label="Creando…">Crear tarea</button>
         </form>
     </dialog>
     <dialog id="members-dialog" class="members-dialog">
@@ -520,7 +520,7 @@
         </form>
     </dialog>
     <dialog id="meal-dialog" class="simple-dialog">
-        <form method="POST" action="{{ route('meals.store') }}" data-meal-form
+        <form method="POST" action="{{ route('meals.store') }}" data-meal-form data-prevent-double-submit
             data-store-action="{{ route('meals.store') }}" data-update-action="{{ url('/meals') }}">
             @csrf
             <input type="hidden" name="_method" value="POST" data-meal-method>
@@ -534,7 +534,7 @@
                     maxlength="1000"></label>
             <label>Ingredientes<textarea name="ingredients_text" rows="5" maxlength="3000"
                     placeholder="Un ingrediente por línea:&#10;Tomates | 4 unidades&#10;Arroz | 500 g"></textarea></label>
-            <button class="primary-button dialog-submit" type="submit">Guardar en el menú</button>
+            <button class="primary-button dialog-submit" type="submit" data-submitting-label="Guardando…">Guardar en el menú</button>
         </form>
     </dialog>
     <dialog id="note-dialog" class="simple-dialog">

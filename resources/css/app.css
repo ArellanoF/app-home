@@ -22,6 +22,7 @@ h1 span { font-size:23px; }
 .icon-button { width:42px;height:42px;border:1px solid var(--line);border-radius:13px;background:var(--paper);display:grid;place-items:center;position:relative;color:var(--ink); }
 .icon-button i { position:absolute;width:7px;height:7px;border:2px solid var(--paper);background:var(--clay);border-radius:50%;right:8px;top:7px; }
 .primary-button { border:0;border-radius:13px;background:var(--sage-dark);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 18px;height:44px;box-shadow:0 6px 16px rgba(65,88,75,.2); }
+.primary-button:disabled { cursor:wait;opacity:.68;box-shadow:none; }
 .primary-button svg { width:18px; }
 .top-actions .primary-button { width:42px;height:42px;padding:0;font-size:0;border-radius:13px;box-shadow:0 5px 14px rgba(65,88,75,.18);flex:0 0 42px; }.top-actions .top-task-button{position:relative}.top-actions .top-task-button svg{display:none}.top-actions .top-task-button:before,.top-actions .top-task-button:after{content:"";position:absolute;left:50%;top:50%;width:18px;height:2px;border-radius:2px;background:#fff;transform:translate(-50%,-50%)}.top-actions .top-task-button:after{transform:translate(-50%,-50%) rotate(90deg)}
 .overview-grid { display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:18px; }
