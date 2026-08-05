@@ -418,7 +418,7 @@
     </div>
 
     <dialog id="task-dialog">
-        <form method="POST" action="{{ route('tasks.store') }}" data-prevent-double-submit data-fetch-form data-refresh="#tareas,.side-nav">
+        <form method="POST" action="{{ route('tasks.store') }}" data-prevent-double-submit data-fetch-form data-refresh="#tareas,.side-nav,.notifications">
             @csrf
             <button class="dialog-close" type="button" data-close-task aria-label="Cerrar">×</button>
             <span class="eyebrow">NUEVA TAREA</span>

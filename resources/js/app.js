@@ -4,7 +4,30 @@ const shoppingDialog = document.querySelector('#shopping-dialog');
 const mealDialog = document.querySelector('#meal-dialog');
 const noteDialog = document.querySelector('#note-dialog');
 const toast = document.querySelector('.toast');
-const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+let appHiddenAt = null;
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        appHiddenAt = Date.now();
+        return;
+    }
+
+    if (appHiddenAt && Date.now() - appHiddenAt >= 5000) {
+        refreshAppIfIdle();
+    }
+});
+
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) refreshAppIfIdle();
+});
+
+function refreshAppIfIdle() {
+    const dialogOpen = document.querySelector('dialog[open]');
+    const formSubmitting = document.querySelector('[data-submitting="true"]');
+
+    if (!dialogOpen && !formSubmitting) window.location.reload();
+}
 
 document.addEventListener('click', (event) => {
     const anchor = event.target.closest('a[href^="#"]');
@@ -207,35 +230,44 @@ taskDateInput.addEventListener('change', () => {
     taskDateValue.textContent = `${day}/${month}/${year}`;
 });
 
-const notificationsToggle = document.querySelector('[data-notifications-toggle]');
-const notificationsPanel = document.querySelector('[data-notifications-panel]');
-
-if (notificationsToggle && notificationsPanel) {
-    notificationsToggle.addEventListener('click', () => {
+document.addEventListener('click', (event) => {
+    const notificationsToggle = event.target.closest('[data-notifications-toggle]');
+    if (notificationsToggle) {
+        const notificationsPanel = document.querySelector('[data-notifications-panel]');
         const expanded = notificationsToggle.getAttribute('aria-expanded') !== 'true';
         notificationsToggle.setAttribute('aria-expanded', String(expanded));
-        notificationsPanel.hidden = !expanded;
-    });
+        if (notificationsPanel) notificationsPanel.hidden = !expanded;
+        return;
+    }
 
-    document.addEventListener('click', (event) => {
-        if (!event.target.closest('.notifications')) closeNotifications();
-    });
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') closeNotifications();
-    });
-    notificationsPanel.querySelectorAll('[data-notification-link]').forEach((link) => {
-        link.addEventListener('click', () => {
-            const tasksPanel = document.querySelector('.tasks-panel');
-            if (tasksPanel) tasksPanel.classList.add('show-all-tasks');
-            closeNotifications();
-        });
-    });
-}
+    if (event.target.closest('[data-notification-link]')) {
+        const tasksPanel = document.querySelector('.tasks-panel');
+        if (tasksPanel) tasksPanel.classList.add('show-all-tasks');
+        closeNotifications();
+        return;
+    }
+
+    if (!event.target.closest('.notifications')) closeNotifications();
+});
+
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeNotifications();
+});
 
 function closeNotifications() {
+    const notificationsToggle = document.querySelector('[data-notifications-toggle]');
+    const notificationsPanel = document.querySelector('[data-notifications-panel]');
     if (!notificationsToggle || !notificationsPanel) return;
     notificationsToggle.setAttribute('aria-expanded', 'false');
     notificationsPanel.hidden = true;
+}
+
+async function refreshNotifications() {
+    try {
+        await refreshFragments(window.location.href, '.notifications');
+    } catch (error) {
+        console.error('No se pudo actualizar el centro de notificaciones.', error);
+    }
 }
 
 function initializeMealSlots(container = document) {
@@ -304,6 +336,7 @@ document.addEventListener('change', async (event) => {
 
             const result = await response.json();
             row.classList.toggle('done', result.completed);
+            await refreshNotifications();
             const message = result.next_due_date
                 ? `Tarea completada · siguiente: ${formatLocalDate(result.next_due_date)}`
                 : (result.completed ? 'Tarea completada. ¡Buen trabajo!' : 'Tarea marcada como pendiente');
@@ -333,6 +366,7 @@ document.addEventListener('change', async (event) => {
             avatar.className = `avatar avatar-${result.color}`;
             avatar.textContent = result.initials;
             avatar.title = result.name;
+            await refreshNotifications();
             showToast(`Tarea asignada a ${result.name}`);
         } catch (error) {
             showToast(error.message);
@@ -357,6 +391,7 @@ document.addEventListener('change', async (event) => {
             if (!response.ok) throw new Error('No se pudo posponer la tarea');
             const result = await response.json();
             row.querySelector('[data-task-date]').textContent = result.label;
+            await refreshNotifications();
             showToast(`Tarea pospuesta al ${result.label}`);
         } catch (error) {
             showToast(error.message);
