@@ -12,7 +12,7 @@ use Illuminate\Validation\Rule;
 
 class TaskController extends Controller
 {
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): JsonResponse|RedirectResponse
     {
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -29,10 +29,18 @@ class TaskController extends Controller
         ]);
 
         if ($validated['recurrence'] !== 'none' && empty($validated['due_date'])) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Las tareas recurrentes necesitan una fecha.', 'errors' => ['due_date' => ['Las tareas recurrentes necesitan una fecha.']]], 422);
+            }
+
             return back()->withErrors(['due_date' => 'Las tareas recurrentes necesitan una fecha.'])->withInput();
         }
 
         Task::create([...$validated, 'house_id' => $request->user()->house_id]);
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'Tarea creada correctamente.', 'refresh_url' => route('home')], 201);
+        }
 
         return to_route('home')->with('success', 'Tarea creada correctamente.');
     }

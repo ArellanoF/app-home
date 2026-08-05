@@ -4,13 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Meal;
 use App\Models\ShoppingItem;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class MealController extends Controller
 {
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): JsonResponse|RedirectResponse
     {
         $meal = $request->validate([
             'meal_date' => ['required', 'date'],
@@ -25,10 +26,13 @@ class MealController extends Controller
 
         Meal::create([...$meal, 'house_id' => $request->user()->house_id]);
 
-        return redirect(route('home', ['menu_week' => $meal['meal_date']]).'#menu')->with('success', 'Menú semanal actualizado.');
+        $refreshUrl = route('home', ['menu_week' => $meal['meal_date']]);
+        return $request->expectsJson()
+            ? response()->json(['message' => 'Menú semanal actualizado.', 'refresh_url' => $refreshUrl], 201)
+            : redirect($refreshUrl)->with('success', 'Menú semanal actualizado.');
     }
 
-    public function update(Request $request, Meal $meal): RedirectResponse
+    public function update(Request $request, Meal $meal): JsonResponse|RedirectResponse
     {
         abort_unless($meal->house_id === $request->user()->house_id, 404);
 
@@ -45,19 +49,25 @@ class MealController extends Controller
 
         $meal->update($validated);
 
-        return redirect(route('home', ['menu_week' => $validated['meal_date']]).'#menu')->with('success', 'Plato actualizado.');
+        $refreshUrl = route('home', ['menu_week' => $validated['meal_date']]);
+        return $request->expectsJson()
+            ? response()->json(['message' => 'Plato actualizado.', 'refresh_url' => $refreshUrl])
+            : redirect($refreshUrl)->with('success', 'Plato actualizado.');
     }
 
-    public function destroy(Meal $meal): RedirectResponse
+    public function destroy(Meal $meal): JsonResponse|RedirectResponse
     {
         abort_unless($meal->house_id === request()->user()->house_id, 404);
         $week = $meal->meal_date->format('Y-m-d');
         $meal->delete();
 
-        return redirect(route('home', ['menu_week' => $week]).'#menu')->with('success', 'Plato eliminado del menú.');
+        $refreshUrl = route('home', ['menu_week' => $week]);
+        return request()->expectsJson()
+            ? response()->json(['message' => 'Plato eliminado del menú.', 'refresh_url' => $refreshUrl])
+            : redirect($refreshUrl)->with('success', 'Plato eliminado del menú.');
     }
 
-    public function addIngredientsToShoppingList(Meal $meal): RedirectResponse
+    public function addIngredientsToShoppingList(Meal $meal): JsonResponse|RedirectResponse
     {
         abort_unless($meal->house_id === request()->user()->house_id, 404);
 
@@ -72,7 +82,9 @@ class MealController extends Controller
             ]);
         }
 
-        return redirect(route('home').'#compra')->with('success', 'Ingredientes añadidos a la compra.');
+        return request()->expectsJson()
+            ? response()->json(['message' => 'Ingredientes añadidos a la compra.', 'refresh_url' => route('home')])
+            : redirect(route('home'))->with('success', 'Ingredientes añadidos a la compra.');
     }
 
     /** @return array<int, array{name: string, quantity: string}> */

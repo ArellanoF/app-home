@@ -10,7 +10,7 @@ use Illuminate\Validation\Rule;
 
 class ShoppingItemController extends Controller
 {
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): JsonResponse|RedirectResponse
     {
         $item = $request->validate([
             'name' => ['required', 'string', 'max:120'],
@@ -20,7 +20,9 @@ class ShoppingItemController extends Controller
 
         ShoppingItem::create([...$item, 'house_id' => $request->user()->house_id]);
 
-        return redirect(route('home').'#compra')->with('success', 'Artículo añadido a la compra.');
+        return $request->expectsJson()
+            ? response()->json(['message' => 'Artículo añadido a la compra.', 'refresh_url' => route('home')], 201)
+            : redirect(route('home'))->with('success', 'Artículo añadido a la compra.');
     }
 
     public function toggle(ShoppingItem $shoppingItem): JsonResponse
@@ -31,11 +33,13 @@ class ShoppingItemController extends Controller
         return response()->json(['purchased' => $shoppingItem->purchased_at !== null]);
     }
 
-    public function destroy(ShoppingItem $shoppingItem): RedirectResponse
+    public function destroy(ShoppingItem $shoppingItem): JsonResponse|RedirectResponse
     {
         abort_unless($shoppingItem->house_id === request()->user()->house_id, 404);
         $shoppingItem->delete();
 
-        return redirect(route('home').'#compra')->with('success', 'Artículo eliminado.');
+        return request()->expectsJson()
+            ? response()->json(['message' => 'Artículo eliminado.', 'refresh_url' => route('home')])
+            : redirect(route('home'))->with('success', 'Artículo eliminado.');
     }
 }

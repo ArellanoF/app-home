@@ -124,7 +124,7 @@
                 <div class="house-notes-list">
                     @forelse ($familyNotes as $note)
                         <article><p>{{ $note->content }}</p><footer><span class="avatar avatar-{{ $note->author->color }}">{{ str($note->author->name)->substr(0, 2)->upper() }}</span><small>{{ $note->author->name }} · {{ $note->created_at->locale('es')->diffForHumans() }}</small>
-                            <form method="POST" action="{{ route('family-notes.destroy', $note) }}">@csrf @method('DELETE')<button aria-label="Eliminar aviso">×</button></form></footer></article>
+                            <form method="POST" action="{{ route('family-notes.destroy', $note) }}" data-fetch-form data-refresh=".house-notes-list">@csrf @method('DELETE')<button aria-label="Eliminar aviso">×</button></form></footer></article>
                     @empty
                         <p class="notes-empty">No hay avisos fijados.</p>
                     @endforelse
@@ -150,7 +150,7 @@
                                 <span class="shopping-icon">{{ $categoryData[0] }}</span>
                                 <span class="shopping-copy"><strong>{{ $item->name }}</strong><small>{{ $item->quantity ?: 'Cantidad sin indicar' }}
                                         · {{ $categoryData[1] }}</small></span>
-                                <form method="POST" action="{{ route('shopping-items.destroy', $item) }}">@csrf
+                                <form method="POST" action="{{ route('shopping-items.destroy', $item) }}" data-fetch-form data-refresh="#compra,.side-nav">@csrf
                                     @method('DELETE')<button aria-label="Eliminar {{ $item->name }}">×</button>
                                 </form>
                             </div>
@@ -201,11 +201,11 @@
                                                 @if ($meal->notes)<small>{{ $meal->notes }}</small>@endif
                                             </button>
                                             @if (count($meal->ingredients ?? []))
-                                                <form method="POST" action="{{ route('meals.shopping-list', $meal) }}">@csrf
+                                                <form method="POST" action="{{ route('meals.shopping-list', $meal) }}" data-fetch-form data-refresh="#compra,.side-nav">@csrf
                                                     <button type="submit" class="meal-to-shopping" title="Añadir ingredientes a la compra" aria-label="Añadir ingredientes de {{ $meal->name }} a la compra">＋</button>
                                                 </form>
                                             @endif
-                                            <form method="POST" action="{{ route('meals.destroy', $meal) }}">
+                                            <form method="POST" action="{{ route('meals.destroy', $meal) }}" data-fetch-form data-refresh="#menu">
                                                 @csrf @method('DELETE')
                                                 <button type="submit" aria-label="Eliminar {{ $meal->name }}">×</button>
                                             </form>
@@ -404,7 +404,7 @@
     </div>
 
     <dialog id="task-dialog">
-        <form method="POST" action="{{ route('tasks.store') }}" data-prevent-double-submit>
+        <form method="POST" action="{{ route('tasks.store') }}" data-prevent-double-submit data-fetch-form data-refresh="#tareas,.side-nav">
             @csrf
             <button class="dialog-close" type="button" data-close-task aria-label="Cerrar">×</button>
             <span class="eyebrow">NUEVA TAREA</span>
@@ -454,7 +454,7 @@
             </header>
             <div class="member-editor-list" aria-label="Personas del hogar">
                 @foreach ($members as $member)
-                    <form method="POST" action="{{ route('members.update', $member) }}"
+                    <form method="POST" action="{{ route('members.update', $member) }}" data-fetch-form data-refresh=".member-editor-list,#familia"
                         class="member-editor {{ $member->is_active ? '' : 'inactive-member' }}">
                         @csrf @method('PUT')
                         <div class="member-identity">
@@ -479,11 +479,11 @@
                             <button class="save-member" type="submit">Guardar cambios</button>
                         </div>
                     </form>
-                    <form id="toggle-member-{{ $member->id }}" method="POST"
+                    <form id="toggle-member-{{ $member->id }}" method="POST" data-fetch-form data-refresh=".member-editor-list,#familia"
                         action="{{ route('members.toggle', $member) }}">@csrf @method('PATCH')</form>
                 @endforeach
             </div>
-            <form method="POST" action="{{ route('members.store') }}" class="new-member-form">
+            <form method="POST" action="{{ route('members.store') }}" class="new-member-form" data-fetch-form data-refresh=".member-editor-list,#familia">
                 @csrf
                 <div class="new-member-title"><span>＋</span>
                     <div><strong>Añadir otra persona</strong><small>No necesitará email ni contraseña.</small></div>
@@ -496,7 +496,7 @@
                             <option value="clay">Terracota</option>
                             <option value="blue">Azul</option>
                         </select></label>
-                    <button class="primary-button" type="submit">Añadir al equipo</button>
+                    <button class="primary-button" type="submit" data-submitting-label="Añadiendo…">Añadir al equipo</button>
                 </div>
             </form>
             <p class="credentials-note"><span>i</span> Las credenciales se podrán activar más adelante sin perder
@@ -504,7 +504,7 @@
         </div>
     </dialog>
     <dialog id="shopping-dialog" class="simple-dialog">
-        <form method="POST" action="{{ route('shopping-items.store') }}" data-prevent-double-submit>
+        <form method="POST" action="{{ route('shopping-items.store') }}" data-prevent-double-submit data-fetch-form data-refresh="#compra,.side-nav">
             @csrf
             <button class="dialog-close" type="button" data-close-shopping aria-label="Cerrar">×</button>
             <span class="eyebrow">LISTA DE LA COMPRA</span>
@@ -520,7 +520,7 @@
         </form>
     </dialog>
     <dialog id="meal-dialog" class="simple-dialog">
-        <form method="POST" action="{{ route('meals.store') }}" data-meal-form data-prevent-double-submit
+        <form method="POST" action="{{ route('meals.store') }}" data-meal-form data-prevent-double-submit data-fetch-form data-refresh="#menu"
             data-store-action="{{ route('meals.store') }}" data-update-action="{{ url('/meals') }}">
             @csrf
             <input type="hidden" name="_method" value="POST" data-meal-method>
@@ -538,7 +538,7 @@
         </form>
     </dialog>
     <dialog id="note-dialog" class="simple-dialog">
-        <form method="POST" action="{{ route('family-notes.store') }}" data-prevent-double-submit>@csrf
+        <form method="POST" action="{{ route('family-notes.store') }}" data-prevent-double-submit data-fetch-form data-refresh=".house-notes-list">@csrf
             <button class="dialog-close" type="button" data-close-note aria-label="Cerrar">×</button>
             <span class="eyebrow">AVISO FAMILIAR</span><h2>Fijar un aviso</h2>
             <label>Mensaje<textarea name="content" rows="4" maxlength="280" placeholder="Ej. El técnico viene el jueves a las 10" required></textarea></label>

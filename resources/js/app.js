@@ -6,40 +6,100 @@ const noteDialog = document.querySelector('#note-dialog');
 const toast = document.querySelector('.toast');
 const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
-const guardedForms = document.querySelectorAll('[data-prevent-double-submit]');
+document.addEventListener('click', (event) => {
+    const anchor = event.target.closest('a[href^="#"]');
+    if (!anchor) return;
 
-guardedForms.forEach((form) => {
-    form.addEventListener('submit', (event) => {
-        if (form.dataset.submitting === 'true') {
-            event.preventDefault();
-            return;
+    event.preventDefault();
+    const target = anchor.getAttribute('href') === '#'
+        ? document.querySelector('#inicio')
+        : document.querySelector(anchor.getAttribute('href'));
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+document.addEventListener('submit', async (event) => {
+    const form = event.target.closest('[data-fetch-form]');
+    if (!form) return;
+
+    event.preventDefault();
+    if (form.dataset.submitting === 'true') return;
+
+    const submitButton = event.submitter || form.querySelector('button[type="submit"]');
+    const submitButtons = [...form.querySelectorAll('button[type="submit"], input[type="submit"]')];
+    if (submitButton && !submitButtons.includes(submitButton)) submitButtons.push(submitButton);
+    form.dataset.submitting = 'true';
+    form.setAttribute('aria-busy', 'true');
+    submitButtons.forEach((button) => {
+        button.dataset.idleLabel = button.value || button.textContent;
+        button.disabled = true;
+        button.setAttribute('aria-disabled', 'true');
+    });
+    if (submitButton?.dataset.submittingLabel) {
+        const loadingLabel = submitButton.dataset.submittingLabel;
+        if (submitButton.matches('input')) submitButton.value = loadingLabel;
+        else submitButton.textContent = loadingLabel;
+    }
+
+    try {
+        const response = await fetch(form.action, {
+            method: (form.method || 'POST').toUpperCase(),
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: new FormData(form),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const validationMessage = Object.values(result.errors || {}).flat()[0];
+            throw new Error(validationMessage || result.message || 'No se pudo guardar el cambio');
         }
 
-        form.dataset.submitting = 'true';
-        form.setAttribute('aria-busy', 'true');
-        const submitButton = form.querySelector('button[type="submit"]');
-        if (!submitButton) return;
-
-        submitButton.dataset.idleLabel = submitButton.textContent;
-        submitButton.textContent = submitButton.dataset.submittingLabel || 'Guardando…';
-        submitButton.disabled = true;
-    });
-});
-
-window.addEventListener('pageshow', () => {
-    guardedForms.forEach((form) => {
-        form.removeAttribute('data-submitting');
+        const formDialog = form.closest('#task-dialog, #shopping-dialog, #meal-dialog, #note-dialog');
+        await refreshFragments(result.refresh_url || window.location.href, form.dataset.refresh);
+        form.reset();
+        if (formDialog) formDialog.close();
+        showToast(result.message || 'Cambio guardado.');
+    } catch (error) {
+        showToast(error.message);
+    } finally {
+        delete form.dataset.submitting;
         form.removeAttribute('aria-busy');
-        const submitButton = form.querySelector('button[type="submit"]');
-        if (!submitButton) return;
-
-        submitButton.disabled = false;
-        if (submitButton.dataset.idleLabel) submitButton.textContent = submitButton.dataset.idleLabel;
-    });
+        submitButtons.forEach((button) => {
+            button.disabled = false;
+            button.removeAttribute('aria-disabled');
+            if (button.matches('input')) button.value = button.dataset.idleLabel;
+            else button.textContent = button.dataset.idleLabel;
+            delete button.dataset.idleLabel;
+        });
+    }
 });
 
-document.querySelectorAll('[data-open-task]').forEach((button) => {
-    button.addEventListener('click', () => dialog.showModal());
+async function refreshFragments(url, selectors) {
+    if (!selectors) return;
+    const response = await fetch(url, { headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' } });
+    if (!response.ok) throw new Error('El cambio se guardó, pero no se pudo actualizar la pantalla');
+
+    const nextDocument = new DOMParser().parseFromString(await response.text(), 'text/html');
+    selectors.split(',').map((selector) => selector.trim()).forEach((selector) => {
+        const currentFragment = document.querySelector(selector);
+        const nextFragment = nextDocument.querySelector(selector);
+        if (currentFragment && nextFragment) currentFragment.replaceWith(nextFragment);
+    });
+
+    if (selectors.includes('#menu')) {
+        initializeMealSlots(document.querySelector('#menu'));
+        initializeWeekNavigation('#menu', initializeMealSlots);
+    }
+}
+
+document.addEventListener('click', (event) => {
+    if (event.target.closest('[data-open-task]')) dialog.showModal();
+    if (event.target.closest('[data-close-task]')) dialog.close();
+    if (event.target.closest('[data-open-members]')) membersDialog.showModal();
+    if (event.target.closest('[data-close-members]')) membersDialog.close();
+    if (event.target.closest('[data-open-shopping]')) shoppingDialog.showModal();
+    if (event.target.closest('[data-close-shopping]')) shoppingDialog.close();
+    if (event.target.closest('[data-close-meal]')) mealDialog.close();
+    if (event.target.closest('[data-open-note]')) noteDialog.showModal();
+    if (event.target.closest('[data-close-note]')) noteDialog.close();
 });
 
 const taskDateInput = dialog.querySelector('input[type="date"]');
@@ -54,17 +114,6 @@ taskDateInput.addEventListener('change', () => {
     const [year, month, day] = taskDateInput.value.split('-');
     taskDateValue.textContent = `${day}/${month}/${year}`;
 });
-
-document.querySelector('[data-close-task]').addEventListener('click', () => dialog.close());
-document.querySelector('[data-open-members]').addEventListener('click', () => membersDialog.showModal());
-document.querySelector('[data-close-members]').addEventListener('click', () => membersDialog.close());
-document.querySelector('[data-open-shopping]').addEventListener('click', () => shoppingDialog.showModal());
-document.querySelector('[data-close-shopping]').addEventListener('click', () => shoppingDialog.close());
-document.querySelector('[data-close-meal]').addEventListener('click', () => mealDialog.close());
-const openNoteButton = document.querySelector('[data-open-note]');
-const closeNoteButton = document.querySelector('[data-close-note]');
-if (openNoteButton) openNoteButton.addEventListener('click', () => noteDialog.showModal());
-if (closeNoteButton) closeNoteButton.addEventListener('click', () => noteDialog.close());
 
 const notificationsToggle = document.querySelector('[data-notifications-toggle]');
 const notificationsPanel = document.querySelector('[data-notifications-panel]');
@@ -117,12 +166,10 @@ function initializeMealSlots(container = document) {
 
 initializeMealSlots();
 
-document.querySelectorAll('.shopping-row[data-shopping-id] input').forEach((input) => {
-    let hideTimeout;
-
-    input.addEventListener('change', async () => {
+document.addEventListener('change', async (event) => {
+    const input = event.target.closest('.shopping-row[data-shopping-id] input');
+    if (input) {
         const row = input.closest('.shopping-row');
-        window.clearTimeout(hideTimeout);
         row.classList.remove('hiding');
         input.disabled = true;
         try {
@@ -136,7 +183,7 @@ document.querySelectorAll('.shopping-row[data-shopping-id] input').forEach((inpu
             showToast(result.purchased ? 'Comprado · puedes deshacerlo durante 5 segundos' : 'Devuelto a pendientes');
 
             if (result.purchased) {
-                hideTimeout = window.setTimeout(() => {
+                window.setTimeout(() => {
                     row.classList.add('hiding');
                     window.setTimeout(() => row.remove(), 300);
                 }, 5000);
@@ -147,13 +194,13 @@ document.querySelectorAll('.shopping-row[data-shopping-id] input').forEach((inpu
         } finally {
             input.disabled = false;
         }
-    });
-});
+        return;
+    }
 
-document.querySelectorAll('.task-row[data-task-id] input').forEach((input) => {
-    input.addEventListener('change', async () => {
-        const row = input.closest('.task-row');
-        input.disabled = true;
+    const taskInput = event.target.closest('.task-row[data-task-id] input[type="checkbox"]');
+    if (taskInput) {
+        const row = taskInput.closest('.task-row');
+        taskInput.disabled = true;
 
         try {
             const response = await fetch(`/tasks/${row.dataset.taskId}/toggle`, {
@@ -170,16 +217,16 @@ document.querySelectorAll('.task-row[data-task-id] input').forEach((input) => {
                 : (result.completed ? 'Tarea completada. ¡Buen trabajo!' : 'Tarea marcada como pendiente');
             showToast(message);
         } catch (error) {
-            input.checked = !input.checked;
+            taskInput.checked = !taskInput.checked;
             showToast(error.message);
         } finally {
-            input.disabled = false;
+            taskInput.disabled = false;
         }
-    });
-});
+        return;
+    }
 
-document.querySelectorAll('[data-task-assignee]').forEach((select) => {
-    select.addEventListener('change', async () => {
+    const select = event.target.closest('[data-task-assignee]');
+    if (select) {
         const row = select.closest('[data-task-id]');
         select.disabled = true;
         try {
@@ -200,11 +247,12 @@ document.querySelectorAll('[data-task-assignee]').forEach((select) => {
         } finally {
             select.disabled = false;
         }
-    });
-});
+        return;
+    }
 
-document.querySelectorAll('[data-task-postpone]').forEach((select) => {
-    select.addEventListener('change', async () => {
+    const postponeSelect = event.target.closest('[data-task-postpone]');
+    if (postponeSelect) {
+        const select = postponeSelect;
         if (!select.value) return;
         const row = select.closest('[data-task-id]');
         select.disabled = true;
@@ -224,20 +272,19 @@ document.querySelectorAll('[data-task-postpone]').forEach((select) => {
             select.value = '';
             select.disabled = false;
         }
-    });
+    }
 });
 
-const tasksToggleButton = document.querySelector('[data-toggle-tasks]');
-
-if (tasksToggleButton) {
-    tasksToggleButton.addEventListener('click', () => {
+document.addEventListener('click', (event) => {
+    const tasksToggleButton = event.target.closest('[data-toggle-tasks]');
+    if (tasksToggleButton) {
         const expanded = tasksToggleButton.getAttribute('aria-expanded') !== 'true';
         document.querySelector('.tasks-panel').classList.toggle('show-all-tasks', expanded);
         tasksToggleButton.setAttribute('aria-expanded', String(expanded));
         tasksToggleButton.firstChild.textContent = expanded ? 'Ver menos ' : 'Ver todas ';
         tasksToggleButton.querySelector('span').textContent = expanded ? '↑' : '↓';
-    });
-}
+    }
+});
 
 if (window.taskFormHasErrors) dialog.showModal();
 if (toast.textContent.trim()) window.setTimeout(() => toast.classList.remove('show'), 2600);
