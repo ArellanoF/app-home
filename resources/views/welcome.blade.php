@@ -9,6 +9,17 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="application-name" content="Vestapp">
+    <style>
+        html,body{margin:0;background:#f4f1e8;color:#26312d}
+        .app-launch{position:fixed;z-index:9999;inset:0;display:grid;place-items:center;background:#f4f1e8;transition:opacity .2s ease,visibility .2s ease}
+        .app-launch.is-ready{opacity:0;visibility:hidden;pointer-events:none}
+        .app-launch-content{display:grid;justify-items:center}
+        .app-launch img{width:148px;height:148px;object-fit:contain}
+        .app-launch-progress{width:74px;height:2px;margin-top:-18px;overflow:hidden;border-radius:2px;background:rgba(65,88,75,.13)}
+        .app-launch-progress::after{content:"";display:block;width:42%;height:100%;border-radius:inherit;background:#5f7568;animation:app-launch-loading 1.15s ease-in-out infinite}
+        @keyframes app-launch-loading{0%{transform:translateX(-120%)}100%{transform:translateX(340%)}}
+        @media (prefers-reduced-motion:reduce){.app-launch-progress::after{animation:none;width:100%;opacity:.55}}
+    </style>
     <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
     <link rel="icon" type="image/png" href="{{ asset('images/logo.png') }}">
     <link rel="apple-touch-icon" href="{{ asset('images/logo.png') }}">
@@ -17,6 +28,12 @@
 </head>
 
 <body>
+    <div class="app-launch" aria-label="Abriendo Vestapp">
+        <div class="app-launch-content">
+            <img src="{{ asset('images/logo.png') }}" alt="">
+            <span class="app-launch-progress" aria-hidden="true"></span>
+        </div>
+    </div>
     <div class="app-shell">
         <aside class="sidebar" aria-label="Navegación principal">
             <a class="brand" href="#" aria-label="{{ $house->name }}, inicio">
@@ -404,10 +421,10 @@
             <a href="#tareas"><svg viewBox="0 0 24 24">
                     <path d="m4 12 2 2 4-4m3-3h7m-16 11 2 2 4-4m3 3h7" />
                 </svg><span>Tareas</span></a>
-            <button class="mobile-add" data-open-task aria-label="Nueva tarea"><svg viewBox="0 0 24 24"
+            <button class="mobile-add" data-open-task aria-label="Nueva tarea"><span class="mobile-refresh-label" aria-hidden="true">Actualizando…</span><svg viewBox="0 0 24 24"
                     aria-hidden="true">
                     <path d="M12 5v14m-7-7h14" />
-                </svg></button>
+                </svg><span class="mobile-refresh-spinner" aria-hidden="true"></span></button>
             <a href="#compra"><svg viewBox="0 0 24 24">
                     <path d="M3 4h2l2 12h10l3-8H6m3 12h.01M17 20h.01" />
                 </svg><span>Compra</span></a>
@@ -566,6 +583,7 @@
         <strong>Actualizando…</strong>
     </div>
     <script type="application/json" id="calendar-events-data">@json($calendarClientEvents)</script>
+    <script>window.addEventListener('DOMContentLoaded',()=>document.querySelector('.app-launch')?.classList.add('is-ready'),{once:true})</script>
     @if ($errors->any())
         <script>
             window.taskFormHasErrors = true;

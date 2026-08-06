@@ -5,6 +5,7 @@ const mealDialog = document.querySelector('#meal-dialog');
 const noteDialog = document.querySelector('#note-dialog');
 const toast = document.querySelector('.toast');
 const refreshLoading = document.querySelector('.refresh-loading');
+const mobileAddButton = document.querySelector('.mobile-add');
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 let appHiddenAt = null;
 let appRefreshing = false;
@@ -47,6 +48,8 @@ async function refreshAppIfIdle() {
     appRefreshing = true;
     refreshLoading?.classList.add('show');
     refreshLoading?.removeAttribute('aria-hidden');
+    mobileAddButton?.classList.add('is-refreshing');
+    mobileAddButton?.setAttribute('aria-busy', 'true');
 
     try {
         const controller = new AbortController();
@@ -93,6 +96,8 @@ async function refreshAppIfIdle() {
         appRefreshing = false;
         refreshLoading?.classList.remove('show');
         refreshLoading?.setAttribute('aria-hidden', 'true');
+        mobileAddButton?.classList.remove('is-refreshing');
+        mobileAddButton?.removeAttribute('aria-busy');
     }
 }
 
