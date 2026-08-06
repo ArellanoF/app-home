@@ -561,6 +561,10 @@
     </dialog>
     <div class="toast {{ session('success') ? 'show' : '' }}" role="status" aria-live="polite">
         {{ session('success') }}</div>
+    <div class="refresh-loading" role="status" aria-live="polite" aria-hidden="true">
+        <span class="refresh-spinner" aria-hidden="true"></span>
+        <strong>Actualizando…</strong>
+    </div>
     <script type="application/json" id="calendar-events-data">@json($calendarClientEvents)</script>
     @if ($errors->any())
         <script>

@@ -4,8 +4,10 @@ const shoppingDialog = document.querySelector('#shopping-dialog');
 const mealDialog = document.querySelector('#meal-dialog');
 const noteDialog = document.querySelector('#note-dialog');
 const toast = document.querySelector('.toast');
+const refreshLoading = document.querySelector('.refresh-loading');
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 let appHiddenAt = null;
+let appRefreshing = false;
 
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
@@ -22,11 +24,33 @@ window.addEventListener('pageshow', (event) => {
     if (event.persisted) refreshAppIfIdle();
 });
 
-function refreshAppIfIdle() {
+async function refreshAppIfIdle() {
     const dialogOpen = document.querySelector('dialog[open]');
     const formSubmitting = document.querySelector('[data-submitting="true"]');
 
-    if (!dialogOpen && !formSubmitting) window.location.reload();
+    if (dialogOpen || formSubmitting || appRefreshing) return;
+
+    appRefreshing = true;
+    refreshLoading?.classList.add('show');
+    refreshLoading?.removeAttribute('aria-hidden');
+
+    try {
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 8000);
+        const response = await fetch(window.location.href, {
+            cache: 'no-store',
+            signal: controller.signal,
+            headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        window.clearTimeout(timeout);
+        if (!response.ok) throw new Error();
+        window.location.reload();
+    } catch (error) {
+        appRefreshing = false;
+        refreshLoading?.classList.remove('show');
+        refreshLoading?.setAttribute('aria-hidden', 'true');
+        showToast('No se pudo actualizar. Comprueba tu conexión.');
+    }
 }
 
 document.addEventListener('click', (event) => {
