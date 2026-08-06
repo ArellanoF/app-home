@@ -595,7 +595,7 @@
         <strong>Actualizando…</strong>
     </div>
     <script type="application/json" id="calendar-events-data">@json($calendarClientEvents)</script>
-    <script>window.addEventListener('DOMContentLoaded',()=>document.querySelector('.app-launch')?.classList.add('is-ready'),{once:true})</script>
+    <script>window.addEventListener('DOMContentLoaded',()=>window.setTimeout(()=>document.querySelector('.app-launch')?.classList.add('is-ready'),450),{once:true})</script>
     @if ($errors->any())
         <script>
             window.taskFormHasErrors = true;
