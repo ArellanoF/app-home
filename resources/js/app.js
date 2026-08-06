@@ -8,6 +8,7 @@ const refreshLoading = document.querySelector('.refresh-loading');
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 let appHiddenAt = null;
 let appRefreshing = false;
+const foregroundRefreshInterval = 60000;
 
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
@@ -15,13 +16,26 @@ document.addEventListener('visibilitychange', () => {
         return;
     }
 
-    if (appHiddenAt && Date.now() - appHiddenAt >= 5000) {
+    const timeInBackground = appHiddenAt ? Date.now() - appHiddenAt : 0;
+    appHiddenAt = null;
+
+    if (timeInBackground >= 30000) {
         refreshAppIfIdle();
     }
 });
 
 window.addEventListener('pageshow', (event) => {
     if (event.persisted) refreshAppIfIdle();
+});
+
+window.setInterval(() => {
+    if (document.visibilityState === 'visible' && navigator.onLine) {
+        refreshAppIfIdle();
+    }
+}, foregroundRefreshInterval);
+
+window.addEventListener('online', () => {
+    if (document.visibilityState === 'visible') refreshAppIfIdle();
 });
 
 async function refreshAppIfIdle() {
@@ -44,12 +58,41 @@ async function refreshAppIfIdle() {
         });
         window.clearTimeout(timeout);
         if (!response.ok) throw new Error();
-        window.location.reload();
+        const nextDocument = new DOMParser().parseFromString(await response.text(), 'text/html');
+        const selectors = [
+            '.sidebar .nav-count',
+            '.sidebar .home-card',
+            '.topbar',
+            '.overview-grid',
+            '.house-notes',
+            '#tareas',
+            '#calendario',
+            '#compra',
+            '#menu',
+            '#familia',
+            '#calendar-events-data',
+        ];
+
+        selectors.forEach((selector) => {
+            const currentElements = document.querySelectorAll(selector);
+            const nextElements = nextDocument.querySelectorAll(selector);
+            currentElements.forEach((element, index) => {
+                if (nextElements[index]) element.replaceWith(nextElements[index]);
+            });
+        });
+
+        initializeMealSlots(document.querySelector('#menu'));
+        initializeCalendar();
+        initializeWeekNavigation('#menu', initializeMealSlots);
+        initializeWeekNavigation('#calendario', initializeCalendar);
+        initializeWebPush();
     } catch (error) {
+        // Keep showing the current data when a silent refresh is unavailable.
+        console.warn('No se pudo actualizar la aplicación en segundo plano.', error);
+    } finally {
         appRefreshing = false;
         refreshLoading?.classList.remove('show');
         refreshLoading?.setAttribute('aria-hidden', 'true');
-        showToast('No se pudo actualizar. Comprueba tu conexión.');
     }
 }
 
