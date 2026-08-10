@@ -11,7 +11,7 @@
     <style>html{color-scheme:light;background:#f4f1e8}body{margin:0;background:#f4f1e8;color:#26312d}</style>
     <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
     <link rel="icon" type="image/png" href="{{ asset('images/logo.png') }}">
-    <link rel="apple-touch-icon" href="{{ asset('images/logo.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('images/apple-touch-icon.png') }}">
     @foreach ([
         [320, 568, 2, 640, 1136], [375, 667, 2, 750, 1334], [414, 896, 2, 828, 1792],
         [360, 780, 3, 1080, 2340], [375, 812, 3, 1125, 2436], [390, 844, 3, 1170, 2532],

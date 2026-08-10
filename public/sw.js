@@ -1,5 +1,5 @@
-const CACHE_NAME = 'vestapp-shell-v3';
-const APP_SHELL = ['/manifest.webmanifest', '/images/logo.png'];
+const CACHE_NAME = 'vestapp-shell-v4';
+const APP_SHELL = ['/manifest.webmanifest', '/images/logo.png', '/images/icon-192.png'];
 
 self.addEventListener('install', (event) => {
     event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
@@ -25,8 +25,8 @@ self.addEventListener('push', (event) => {
 
     event.waitUntil(self.registration.showNotification(notification.title || 'Vestapp', {
         body: notification.body,
-        icon: notification.icon || '/images/logo.png',
-        badge: notification.badge || '/images/logo.png',
+        icon: notification.icon || '/images/icon-192.png',
+        badge: notification.badge || '/images/icon-192.png',
         tag: notification.tag,
         data: { url: notification.url || '/' },
     }));

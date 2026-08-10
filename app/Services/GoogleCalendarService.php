@@ -23,10 +23,10 @@ class GoogleCalendarService
         }
 
         try {
-            $ical = Cache::remember(
+            $ical = Cache::flexible(
                 'google-calendar.ical-feed.'.sha1($url),
-                now()->addMinutes(10),
-                fn () => Http::timeout(10)->retry(2, 250)->get($url)->throw()->body(),
+                [600, 3600],
+                fn () => Http::connectTimeout(2)->timeout(4)->retry(1, 150)->get($url)->throw()->body(),
             );
             $calendar = Reader::read($ical);
             $timezone = new \DateTimeZone(config('app.timezone', 'Europe/Madrid'));

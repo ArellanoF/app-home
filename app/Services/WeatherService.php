@@ -17,7 +17,7 @@ class WeatherService
         }
 
         try {
-            $data = Cache::remember("weather.house.{$house->id}.v2", now()->addMinutes(15), fn () => Http::timeout(8)->retry(2, 200)
+            $data = Cache::flexible("weather.house.{$house->id}.v2", [900, 3600], fn () => Http::connectTimeout(2)->timeout(4)->retry(1, 150)
                 ->get('https://api.open-meteo.com/v1/forecast', [
                     'latitude' => $house->weather_latitude,
                     'longitude' => $house->weather_longitude,

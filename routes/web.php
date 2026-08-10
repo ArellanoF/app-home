@@ -118,11 +118,21 @@ Route::middleware('auth')->group(function () {
             ->limit(5)
             ->get();
         $tasks = $pendingTasks->concat($recentCompletedTasks);
+        $pendingTasksCount = $pendingTasks->count();
         $attentionTasks = $pendingTasks
             ->filter(fn ($task) => $task->due_date?->lessThanOrEqualTo($currentTime->startOfDay()))
             ->take(5);
         $tasksCount = Task::where('house_id', $houseId)->count();
         $members = User::query()->where('house_id', $houseId)
+            ->select('users.*')
+            ->addSelect([
+                'monthly_average_delay_days' => Task::query()
+                    ->selectRaw('COALESCE(AVG(DATEDIFF(tasks.completed_at, tasks.due_date)), 0)')
+                    ->whereColumn('tasks.user_id', 'users.id')
+                    ->whereBetween('tasks.completed_at', [$currentTime->startOfMonth(), $currentTime->endOfMonth()])
+                    ->whereNotNull('tasks.due_date')
+                    ->whereRaw('DATE(tasks.completed_at) > tasks.due_date'),
+            ])
             ->withCount([
                 'tasks',
                 'tasks as completed_tasks_count' => fn ($query) => $query->whereNotNull('completed_at'),
@@ -136,15 +146,12 @@ Route::middleware('auth')->group(function () {
             ->orderByDesc('is_active')
             ->orderBy('name')
             ->get();
-        $members->each(function (User $member) use ($currentTime) {
-            $member->monthly_average_delay_days = (float) Task::query()
-                ->where('user_id', $member->id)
-                ->whereBetween('completed_at', [$currentTime->startOfMonth(), $currentTime->endOfMonth()])
-                ->whereNotNull('due_date')
-                ->whereRaw('DATE(completed_at) > due_date')
-                ->selectRaw('COALESCE(AVG(DATEDIFF(completed_at, due_date)), 0) as average_delay')
-                ->value('average_delay');
-        });
+        $members->each(fn (User $member) => $member->monthly_average_delay_days = (float) $member->monthly_average_delay_days);
+        $shoppingItems = ShoppingItem::query()
+            ->where('house_id', $houseId)
+            ->whereNull('purchased_at')
+            ->latest()
+            ->get();
 
         return view('welcome', [
             'house' => $house,
@@ -161,8 +168,8 @@ Route::middleware('auth')->group(function () {
             'eventsByDate' => $eventsByDate,
             'dateFilterActive' => $dateFilterActive,
             'calendarClientEvents' => $calendarClientEvents,
-            'shoppingItems' => ShoppingItem::query()->where('house_id', $houseId)->whereNull('purchased_at')->latest()->get(),
-            'shoppingPendingCount' => ShoppingItem::where('house_id', $houseId)->whereNull('purchased_at')->count(),
+            'shoppingItems' => $shoppingItems,
+            'shoppingPendingCount' => $shoppingItems->count(),
             'menuWeekStart' => $menuWeekStart,
             'menuDays' => $menuDays,
             'weeklyMeals' => $weeklyMeals,
@@ -170,10 +177,10 @@ Route::middleware('auth')->group(function () {
             'attentionTasks' => $attentionTasks,
             'tasksCount' => $tasksCount,
             'recentCompletedTasksCount' => $recentCompletedTasks->count(),
-            'pendingTasksCount' => Task::where('house_id', $houseId)->whereNull('completed_at')->count(),
-            'completedTasksCount' => Task::where('house_id', $houseId)->whereNotNull('completed_at')->count(),
+            'pendingTasksCount' => $pendingTasksCount,
+            'completedTasksCount' => $tasksCount - $pendingTasksCount,
             'members' => $members,
-            'activeMembers' => User::where('house_id', $houseId)->where('is_active', true)->orderBy('name')->get(),
+            'activeMembers' => $members->where('is_active', true)->sortBy('name')->values(),
             'familyNotes' => FamilyNote::with('author')->where('house_id', $houseId)->latest()->limit(6)->get(),
             'monthlyHouseCompletedCount' => Task::where('house_id', $houseId)
                 ->whereBetween('completed_at', [$currentTime->startOfMonth(), $currentTime->endOfMonth()])->count(),
