@@ -17,7 +17,8 @@
         .app-launch.is-ready{opacity:0;visibility:hidden;pointer-events:none}
         .app-launch-content{display:grid;justify-items:center}
         .app-launch img{width:148px;height:148px;object-fit:contain}
-        .app-launch-progress{width:74px;height:2px;margin-top:-18px;overflow:hidden;border-radius:2px;background:rgba(65,88,75,.13)}
+        .app-launch-label{margin-top:-13px;color:#526c5c;font:600 12px/1.2 Arial,sans-serif;letter-spacing:.08em}
+        .app-launch-progress{width:74px;height:2px;margin-top:10px;overflow:hidden;border-radius:2px;background:rgba(65,88,75,.13)}
         .app-launch-progress::after{content:"";display:block;width:42%;height:100%;border-radius:inherit;background:#5f7568;animation:app-launch-loading 1.15s ease-in-out infinite}
         @keyframes app-launch-loading{0%{transform:translateX(-120%)}100%{transform:translateX(340%)}}
         @media (prefers-reduced-motion:reduce){.app-launch-progress::after{animation:none;width:100%;opacity:.55}}
@@ -25,6 +26,7 @@
     <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
     <link rel="icon" type="image/png" href="{{ asset('images/logo.png') }}">
     <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('images/apple-touch-icon.png') }}">
+    <link rel="preload" as="image" href="{{ asset('images/logo.png') }}" fetchpriority="high">
     @foreach ([
         [320, 568, 2, 640, 1136], [375, 667, 2, 750, 1334], [414, 896, 2, 828, 1792],
         [360, 780, 3, 1080, 2340], [375, 812, 3, 1125, 2436], [390, 844, 3, 1170, 2532],
@@ -42,7 +44,8 @@
 <body>
     <div class="app-launch" aria-label="Abriendo Vestapp">
         <div class="app-launch-content">
-            <img src="{{ asset('images/logo.png') }}" alt="">
+            <img src="{{ asset('images/logo.png') }}" alt="" width="148" height="148" fetchpriority="high" decoding="sync">
+            <span class="app-launch-label">PREPARANDO TU HOGAR</span>
             <span class="app-launch-progress" aria-hidden="true"></span>
         </div>
     </div>
@@ -595,7 +598,7 @@
         <strong>Actualizando…</strong>
     </div>
     <script type="application/json" id="calendar-events-data">@json($calendarClientEvents)</script>
-    <script>window.addEventListener('DOMContentLoaded',()=>window.setTimeout(()=>document.querySelector('.app-launch')?.classList.add('is-ready'),450),{once:true})</script>
+    <script>window.addEventListener('DOMContentLoaded',()=>window.requestAnimationFrame(()=>document.querySelector('.app-launch')?.classList.add('is-ready')),{once:true})</script>
     @if ($errors->any())
         <script>
             window.taskFormHasErrors = true;
