@@ -71,7 +71,12 @@ class TaskController extends Controller
             $task = Task::query()->lockForUpdate()->findOrFail($task->id);
             $completing = $task->completed_at === null;
 
-            if (! $completing || $task->recurrence === 'none' || ! $task->due_date) {
+            $today = now(config('app.timezone'))->startOfDay();
+
+            if (! $completing
+                || $task->recurrence === 'none'
+                || ! $task->due_date
+                || $task->due_date->isBefore($today)) {
                 $task->update(['completed_at' => $completing ? now() : null]);
 
                 return null;

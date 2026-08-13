@@ -50,7 +50,7 @@ Route::middleware('auth')->group(function () {
         $weekStart = $selectedDate->startOfWeek();
         $weekEnd = $weekStart->endOfWeek();
         $upcomingStart = $currentTime->startOfDay();
-        $upcomingEnd = $upcomingStart->addDays(4)->endOfDay();
+        $upcomingEnd = $upcomingStart->addDays(3)->endOfDay();
         $weekDays = collect(range(0, 6))->map(fn ($offset) => $weekStart->addDays($offset));
         $weekCalendar = $calendar->upcoming(200, $weekStart, $house->google_calendar_ical_url);
         $upcomingCalendar = $calendar->upcoming(200, $upcomingStart, $house->google_calendar_ical_url);
@@ -59,8 +59,7 @@ Route::middleware('auth')->group(function () {
                 && $event['end']->greaterThanOrEqualTo($weekStart))
             ->values();
         $upcomingEvents = collect($upcomingCalendar['events'])
-            ->filter(fn ($event) => $event['start']->lessThanOrEqualTo($upcomingEnd)
-                && $event['end']->greaterThanOrEqualTo($upcomingStart))
+            ->filter(fn ($event) => $event['start']->betweenIncluded($upcomingStart, $upcomingEnd))
             ->values();
         $eventsByDate = $weekEvents->groupBy(fn ($event) => $event['start']->format('Y-m-d'));
         $selectedEvents = $dateFilterActive
@@ -83,8 +82,7 @@ Route::middleware('auth')->group(function () {
                 'start' => $event['all_day'] ? 'Todo el día' : $event['start']->format('H:i'),
                 'end' => $event['all_day'] ? $event['start']->locale('es')->isoFormat('D MMM') : $event['end']->format('H:i'),
                 'all_day' => $event['all_day'],
-                'is_upcoming' => $event['start']->lessThanOrEqualTo($upcomingEnd)
-                    && $event['end']->greaterThanOrEqualTo($upcomingStart),
+                'is_upcoming' => $event['start']->betweenIncluded($upcomingStart, $upcomingEnd),
             ])->values();
 
         try {
