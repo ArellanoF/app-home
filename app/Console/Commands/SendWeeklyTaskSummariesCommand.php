@@ -22,10 +22,14 @@ class SendWeeklyTaskSummariesCommand extends Command
 
         $users = User::query()
             ->where('is_active', true)
-            ->whereHas('tasks', fn ($query) => $query->whereNull('completed_at'))
+            ->whereHas('tasks', fn ($query) => $query
+                ->whereNull('completed_at')
+                ->whereNotNull('due_date')
+                ->whereDate('due_date', '<', $today))
             ->with(['tasks' => fn ($query) => $query
                 ->whereNull('completed_at')
-                ->orderByRaw('due_date IS NULL')
+                ->whereNotNull('due_date')
+                ->whereDate('due_date', '<', $today)
                 ->orderBy('due_date')]);
 
         if ($email = $this->option('to')) {
@@ -38,7 +42,7 @@ class SendWeeklyTaskSummariesCommand extends Command
             });
 
         if ($email && $sent === 0) {
-            $this->warn('No se encontro un miembro activo con ese email y tareas pendientes.');
+            $this->warn('No se encontro un miembro activo con ese email y tareas atrasadas.');
 
             return self::FAILURE;
         }

@@ -20,7 +20,7 @@ class WeeklyPendingTasksMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: "Tus tareas pendientes de la semana ({$this->tasks->count()})",
+            subject: "Tus tareas atrasadas ({$this->tasks->count()})",
         );
     }
 

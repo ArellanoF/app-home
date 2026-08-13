@@ -408,7 +408,7 @@ document.addEventListener('change', async (event) => {
 
             const result = await response.json();
             row.classList.toggle('done', result.completed);
-            await refreshNotifications();
+            await refreshFragments(window.location.href, '#tareas,.side-nav,.notifications,#familia');
             const message = result.next_due_date
                 ? `Tarea completada · siguiente: ${formatLocalDate(result.next_due_date)}`
                 : (result.completed ? 'Tarea completada. ¡Buen trabajo!' : 'Tarea marcada como pendiente');
@@ -517,7 +517,7 @@ function initializeCalendar() {
         });
         upcomingButton.classList.add('active');
         calendarTitle.textContent = 'Próximos eventos';
-        renderCalendarEvents(calendarEvents.filter((item) => item.is_upcoming).slice(0, 5), false);
+        renderCalendarEvents(calendarEvents.filter((item) => item.is_upcoming), false);
     });
 
     function setSelectedDay(selectedLink) {

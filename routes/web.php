@@ -49,35 +49,43 @@ Route::middleware('auth')->group(function () {
 
         $weekStart = $selectedDate->startOfWeek();
         $weekEnd = $weekStart->endOfWeek();
+        $upcomingStart = $currentTime->startOfDay();
+        $upcomingEnd = $upcomingStart->addDays(4)->endOfDay();
         $weekDays = collect(range(0, 6))->map(fn ($offset) => $weekStart->addDays($offset));
         $weekCalendar = $calendar->upcoming(200, $weekStart, $house->google_calendar_ical_url);
+        $upcomingCalendar = $calendar->upcoming(200, $upcomingStart, $house->google_calendar_ical_url);
         $weekEvents = collect($weekCalendar['events'])
             ->filter(fn ($event) => $event['start']->lessThanOrEqualTo($weekEnd)
                 && $event['end']->greaterThanOrEqualTo($weekStart))
+            ->values();
+        $upcomingEvents = collect($upcomingCalendar['events'])
+            ->filter(fn ($event) => $event['start']->lessThanOrEqualTo($upcomingEnd)
+                && $event['end']->greaterThanOrEqualTo($upcomingStart))
             ->values();
         $eventsByDate = $weekEvents->groupBy(fn ($event) => $event['start']->format('Y-m-d'));
         $selectedEvents = $dateFilterActive
             ? $eventsByDate->get($selectedDate->format('Y-m-d'), collect())->values()->all()
             : ($request->filled('week')
                 ? $weekEvents->all()
-                : $weekEvents
-                    ->filter(fn ($event) => $event['end']->greaterThanOrEqualTo(now(config('app.timezone'))))
-                    ->take(5)
-                    ->values()
-                    ->all());
-        $googleCalendar = array_merge($weekCalendar, ['events' => $selectedEvents]);
-        $calendarClientEvents = $weekEvents->map(fn ($event) => [
-            'id' => $event['id'],
-            'title' => $event['title'],
-            'location' => $event['location'] ?: 'Sin ubicación',
-            'date' => $event['start']->format('Y-m-d'),
-            'date_label' => $event['start']->locale('es')->isoFormat('ddd D MMM'),
-            'start' => $event['all_day'] ? 'Todo el día' : $event['start']->format('H:i'),
-            'end' => $event['all_day'] ? $event['start']->locale('es')->isoFormat('D MMM') : $event['end']->format('H:i'),
-            'all_day' => $event['all_day'],
-            'is_upcoming' => $request->filled('week')
-                || $event['end']->greaterThanOrEqualTo(now(config('app.timezone'))),
-        ])->values();
+                : $upcomingEvents->all());
+        $calendarMetadata = $dateFilterActive || $request->filled('week') ? $weekCalendar : $upcomingCalendar;
+        $googleCalendar = array_merge($calendarMetadata, ['events' => $selectedEvents]);
+        $calendarClientEvents = $weekEvents
+            ->concat($upcomingEvents)
+            ->unique('id')
+            ->sortBy('start')
+            ->map(fn ($event) => [
+                'id' => $event['id'],
+                'title' => $event['title'],
+                'location' => $event['location'] ?: 'Sin ubicación',
+                'date' => $event['start']->format('Y-m-d'),
+                'date_label' => $event['start']->locale('es')->isoFormat('ddd D MMM'),
+                'start' => $event['all_day'] ? 'Todo el día' : $event['start']->format('H:i'),
+                'end' => $event['all_day'] ? $event['start']->locale('es')->isoFormat('D MMM') : $event['end']->format('H:i'),
+                'all_day' => $event['all_day'],
+                'is_upcoming' => $event['start']->lessThanOrEqualTo($upcomingEnd)
+                    && $event['end']->greaterThanOrEqualTo($upcomingStart),
+            ])->values();
 
         try {
             $menuDate = $request->filled('menu_week')
@@ -120,7 +128,8 @@ Route::middleware('auth')->group(function () {
         $tasks = $pendingTasks->concat($recentCompletedTasks);
         $pendingTasksCount = $pendingTasks->count();
         $attentionTasks = $pendingTasks
-            ->filter(fn ($task) => $task->due_date?->lessThanOrEqualTo($currentTime->startOfDay()))
+            ->filter(fn ($task) => $task->user_id === $request->user()->id
+                && $task->due_date?->lessThanOrEqualTo($currentTime->startOfDay()))
             ->take(5);
         $tasksCount = Task::where('house_id', $houseId)->count();
         $members = User::query()->where('house_id', $houseId)

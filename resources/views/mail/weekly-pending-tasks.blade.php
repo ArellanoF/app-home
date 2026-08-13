@@ -18,7 +18,7 @@
                 <h1 style="margin:8px 0 0;font-size:24px">Tareas de esta semana</h1>
             </div>
             <div style="padding:26px 28px">
-                <p style="margin:0 0 22px;line-height:1.5">Hola, {{ $recipient->name }}. Tienes {{ $tasks->count() }} {{ $tasks->count() === 1 ? 'tarea pendiente' : 'tareas pendientes' }}.</p>
+                <p style="margin:0 0 22px;line-height:1.5">Hola, {{ $recipient->name }}. Tienes {{ $tasks->count() }} {{ $tasks->count() === 1 ? 'tarea atrasada' : 'tareas atrasadas' }}.</p>
 
                 @if ($overdueTasks->isNotEmpty())
                     <h2 style="margin:22px 0 10px;color:#a84f3c;font-size:16px">Atrasadas</h2>

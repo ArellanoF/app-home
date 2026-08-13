@@ -67,12 +67,13 @@ class TaskController extends Controller
     {
         abort_unless($task->house_id === request()->user()->house_id, 404);
 
-        $nextTask = DB::transaction(function () use ($task) {
+        $nextDueDate = DB::transaction(function () use ($task) {
             $task = Task::query()->lockForUpdate()->findOrFail($task->id);
             $completing = $task->completed_at === null;
-            $task->update(['completed_at' => $completing ? now() : null]);
 
             if (! $completing || $task->recurrence === 'none' || ! $task->due_date) {
+                $task->update(['completed_at' => $completing ? now() : null]);
+
                 return null;
             }
 
@@ -82,18 +83,12 @@ class TaskController extends Controller
                 'monthly' => $task->due_date->addMonthNoOverflow(),
             };
 
-            return Task::firstOrCreate(
-                ['recurrence_source_id' => $task->id],
-                [
-                    'house_id' => $task->house_id,
-                    'title' => $task->title,
-                    'icon' => $task->icon,
-                    'description' => $task->description,
-                    'user_id' => $task->user_id,
-                    'due_date' => $nextDueDate,
-                    'recurrence' => $task->recurrence,
-                ],
-            );
+            $task->update([
+                'due_date' => $nextDueDate,
+                'completed_at' => null,
+            ]);
+
+            return $nextDueDate;
         });
 
         $task->refresh();
@@ -101,7 +96,7 @@ class TaskController extends Controller
         return response()->json([
             'completed' => $task->completed_at !== null,
             'completed_at' => $task->completed_at?->toIso8601String(),
-            'next_due_date' => $nextTask?->due_date?->format('Y-m-d'),
+            'next_due_date' => $nextDueDate?->format('Y-m-d'),
         ]);
     }
 

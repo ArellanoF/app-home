@@ -45,6 +45,8 @@ services:
       RUN_MIGRATIONS: "true"
     expose:
       - "8000"
+    labels:
+      - "traefik.docker.network=h8yt91l5bjud8pehjh41dm3m"
     depends_on:
       db:
         condition: service_healthy
