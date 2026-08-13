@@ -50,17 +50,20 @@ Route::middleware('auth')->group(function () {
         $weekStart = $selectedDate->startOfWeek();
         $weekEnd = $weekStart->endOfWeek();
         $upcomingStart = $currentTime->startOfDay();
-        $upcomingEnd = $upcomingStart->addDays(3)->endOfDay();
         $weekDays = collect(range(0, 6))->map(fn ($offset) => $weekStart->addDays($offset));
         $weekCalendar = $calendar->upcoming(200, $weekStart, $house->google_calendar_ical_url);
         $upcomingCalendar = $calendar->upcoming(200, $upcomingStart, $house->google_calendar_ical_url);
         $weekEvents = collect($weekCalendar['events'])
-            ->filter(fn ($event) => $event['start']->lessThanOrEqualTo($weekEnd)
-                && $event['end']->greaterThanOrEqualTo($weekStart))
+            ->filter(fn ($event) => $event['start']->betweenIncluded($weekStart, $weekEnd))
             ->values();
         $upcomingEvents = collect($upcomingCalendar['events'])
-            ->filter(fn ($event) => $event['start']->betweenIncluded($upcomingStart, $upcomingEnd))
+            ->filter(fn ($event) => $event['start']->greaterThanOrEqualTo($upcomingStart))
+            ->groupBy(fn ($event) => $event['start']->format('Y-m-d'))
+            ->take(5)
+            ->collapse()
             ->values();
+        $upcomingDates = $upcomingEvents
+            ->mapWithKeys(fn ($event) => [$event['start']->format('Y-m-d') => true]);
         $eventsByDate = $weekEvents->groupBy(fn ($event) => $event['start']->format('Y-m-d'));
         $selectedEvents = $dateFilterActive
             ? $eventsByDate->get($selectedDate->format('Y-m-d'), collect())->values()->all()
@@ -82,7 +85,7 @@ Route::middleware('auth')->group(function () {
                 'start' => $event['all_day'] ? 'Todo el día' : $event['start']->format('H:i'),
                 'end' => $event['all_day'] ? $event['start']->locale('es')->isoFormat('D MMM') : $event['end']->format('H:i'),
                 'all_day' => $event['all_day'],
-                'is_upcoming' => $event['start']->betweenIncluded($upcomingStart, $upcomingEnd),
+                'is_upcoming' => $upcomingDates->has($event['start']->format('Y-m-d')),
             ])->values();
 
         try {

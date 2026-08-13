@@ -333,7 +333,9 @@
                     <div class="section-heading calendar-heading">
                         <div><span class="eyebrow">AGENDA</span>
                             <h2 data-calendar-title>
-                                {{ $dateFilterActive ? 'Eventos del ' . $selectedDate->locale('es')->isoFormat('D [de] MMMM') : 'Próximos eventos' }}
+                                {{ $dateFilterActive
+                                    ? 'Eventos del ' . $selectedDate->locale('es')->isoFormat('D [de] MMMM')
+                                    : (request()->filled('week') ? 'Eventos de la semana' : 'Próximos eventos') }}
                             </h2>
                         </div>
                         @if ($googleCalendarUrl)
@@ -345,9 +347,10 @@
                     <div class="calendar-week-nav">
                         <a href="{{ route('home', ['week' => $weekStart->subWeek()->format('Y-m-d')]) . '#calendario' }}"
                             aria-label="Semana anterior">‹</a>
-                        <button type="button" data-week-today-url="{{ route('home', ['week' => now(config('app.timezone'))->startOfWeek()->format('Y-m-d')]) . '#calendario' }}">Hoy</button>
-                        <button type="button" data-calendar-upcoming class="{{ $dateFilterActive ? '' : 'active' }}"
-                            title="Mostrar próximos eventos">Próximos</button>
+                        <button type="button" data-calendar-upcoming
+                            data-calendar-upcoming-url="{{ route('home') . '#calendario' }}"
+                            class="{{ $dateFilterActive || request()->filled('week') ? '' : 'active' }}"
+                            title="Volver a hoy y mostrar las próximas cinco fechas con eventos">Hoy</button>
                         <span>{{ $weekStart->locale('es')->isoFormat('D MMM') }} —
                             {{ $weekStart->addDays(6)->locale('es')->isoFormat('D MMM') }}</span>
                         <a href="{{ route('home', ['week' => $weekStart->addWeek()->format('Y-m-d')]) . '#calendario' }}"
@@ -383,6 +386,7 @@
                                     <small>{{ $event['all_day'] ? $event['start']->locale('es')->isoFormat('D MMM') : $event['end']->format('H:i') }}</small>
                                 </time>
                                 <div>
+                                    <span class="source">{{ $googleCalendar['calendar'] ?: 'Google Calendar' }} · {{ $event['start']->locale('es')->isoFormat('ddd D MMM') }}</span>
                                     <strong>{{ $event['title'] }}</strong>
                                     <small>{{ $event['location'] ?: 'Sin ubicación' }}</small>
                                 </div>

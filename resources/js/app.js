@@ -510,14 +510,34 @@ function initializeCalendar() {
         });
     });
 
-    upcomingButton.addEventListener('click', () => {
-        dayLinks.forEach((link) => {
-            link.classList.remove('selected');
-            link.removeAttribute('aria-current');
-        });
-        upcomingButton.classList.add('active');
-        calendarTitle.textContent = 'Próximos eventos';
-        renderCalendarEvents(calendarEvents.filter((item) => item.is_upcoming), false);
+    upcomingButton.addEventListener('click', async () => {
+        const calendarSection = upcomingButton.closest('#calendario');
+        if (!calendarSection || calendarSection.getAttribute('aria-busy') === 'true') return;
+
+        calendarSection.setAttribute('aria-busy', 'true');
+
+        try {
+            const response = await fetch(upcomingButton.dataset.calendarUpcomingUrl, {
+                headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            if (!response.ok) throw new Error('No se pudieron cargar los próximos eventos');
+
+            const nextDocument = new DOMParser().parseFromString(await response.text(), 'text/html');
+            const nextSection = nextDocument.querySelector('#calendario');
+            const nextCalendarData = nextDocument.querySelector('#calendar-events-data');
+            const currentCalendarData = document.querySelector('#calendar-events-data');
+            if (!nextSection || !nextCalendarData || !currentCalendarData) {
+                throw new Error('La respuesta no contiene los próximos eventos');
+            }
+
+            currentCalendarData.replaceWith(nextCalendarData);
+            calendarSection.replaceWith(nextSection);
+            initializeCalendar();
+            initializeWeekNavigation('#calendario', initializeCalendar);
+        } catch (error) {
+            calendarSection.removeAttribute('aria-busy');
+            showToast(error.message);
+        }
     });
 
     function setSelectedDay(selectedLink) {
