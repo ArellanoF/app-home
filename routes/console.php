@@ -9,3 +9,6 @@ Schedule::command('tasks:send-weekly-summary')
     ->at('08:00')
     ->timezone(config('app.timezone'))
     ->withoutOverlapping();
+
+Schedule::command('app:check-availability')
+    ->everyFiveMinutes();

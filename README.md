@@ -103,7 +103,21 @@ Coolify puede proporcionar un dominio gratuito `sslip.io` si el servidor no
 tiene un dominio wildcard configurado. No publiques los puertos de MariaDB.
 
 El contenedor web ejecuta las migraciones antes de arrancar. El contenedor
-`scheduler` permanece activo y ejecuta los correos semanales de Laravel.
+`scheduler` permanece activo, ejecuta los correos semanales y comprueba cada
+cinco minutos que la URL pública responda. Tras dos fallos consecutivos envía
+un aviso a `AVAILABILITY_MONITOR_EMAIL` usando el SMTP configurado; también
+avisa cuando el servicio se recupera. Si no se indican valores específicos,
+usa `APP_URL` y `ADMIN_EMAIL`.
+
+La comprobación puede ejecutarse manualmente dentro del contenedor con:
+
+```bash
+php artisan app:check-availability
+```
+
+Este monitor cubre fallos de la aplicación o de su ruta pública mientras el
+contenedor `scheduler` siga funcionando. Para detectar la caída completa del
+servidor de Coolify hace falta, además, un monitor alojado externamente.
 
 ### 3. Verificaciones
 
